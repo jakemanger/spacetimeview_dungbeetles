@@ -26,7 +26,8 @@ p <- spacetimeview(
   summary_radius = 10000,
   summary_height = 100,
   header_title='Dung Beetles of Australia',
-  social_links=c('github'='https://github.com/jakemanger/spacetimeview_dungbeetles')
+  social_links=c('github'='https://github.com/jakemanger/spacetimeview_dungbeetles'),
+  filter_column='scientificName',
 )
 
 print(p)
