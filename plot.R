@@ -23,7 +23,10 @@ dungfauna_occurrence <- dungfauna_occurrence[
 # now make your dashboard in one line of code
 p <- spacetimeview(
   dungfauna_occurrence,
-  summary_radius = 10000,
+  column_to_plot = 'individualCount',
+  color_scheme = 'Reds',
+  summary_radius = 20000,
+  animation_speed = 10,
   summary_height = 100,
   header_title='Dung Beetles of Australia',
   social_links=c('github'='https://github.com/jakemanger/spacetimeview_dungbeetles'),
