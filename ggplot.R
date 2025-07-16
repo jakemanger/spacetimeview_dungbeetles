@@ -70,26 +70,76 @@ for(species in species_columns) {
 histogram_code <- "
 Plot.plot({
   marks: [
-    // Main bars
-    Plot.barX(
+    // Lollipop sticks (vertical lines from axis to dot)
+    Plot.link(
       Object.keys(data[0])
         .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value')
         .map(species => {
           var cleanName = species.replace(/[_]/g, ' ');
           var average = data.reduce((sum, d) => sum + (d[species] || 0), 0) / data.length;
           var iconUrl = factorIcons && factorIcons[species] ? factorIcons[species] : null;
+          var colorKey = 'Predicted_absent_1';
+          if (average >= 9) colorKey = 'Predicted_present_1';
+          else if (average >= 8) colorKey = 'Predicted_present_0.9';
+          else if (average >= 7) colorKey = 'Predicted_present_0.8';
+          else if (average >= 6) colorKey = 'Predicted_present_0.7';
+          else if (average >= 5.5) colorKey = 'Predicted_present_0.6';
+          else if (average >= 4.5) colorKey = 'Equivocal';
+          else if (average >= 3.5) colorKey = 'Predicted_absent_0.6';
+          else if (average >= 2.5) colorKey = 'Predicted_absent_0.7';
+          else if (average >= 1.5) colorKey = 'Predicted_absent_0.8';
+          else if (average >= 0.5) colorKey = 'Predicted_absent_0.9';
           return { 
             species: cleanName,
             originalSpecies: species,
             average: average,
-            iconUrl: iconUrl
+            iconUrl: iconUrl,
+            color: colorKey
+          };
+        })
+        .sort((a, b) => b.average - a.average),
+      {
+        y1: 'species',
+        y2: 'species',
+        x1: 0,
+        x2: 'average',
+        stroke: 'color',
+        strokeWidth: 2
+      }
+    ),
+    // Lollipop dots
+    Plot.dot(
+      Object.keys(data[0])
+        .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value')
+        .map(species => {
+          var cleanName = species.replace(/[_]/g, ' ');
+          var average = data.reduce((sum, d) => sum + (d[species] || 0), 0) / data.length;
+          var iconUrl = factorIcons && factorIcons[species] ? factorIcons[species] : null;
+          var colorKey = 'Predicted_absent_1';
+          if (average >= 9) colorKey = 'Predicted_present_1';
+          else if (average >= 8) colorKey = 'Predicted_present_0.9';
+          else if (average >= 7) colorKey = 'Predicted_present_0.8';
+          else if (average >= 6) colorKey = 'Predicted_present_0.7';
+          else if (average >= 5.5) colorKey = 'Predicted_present_0.6';
+          else if (average >= 4.5) colorKey = 'Equivocal';
+          else if (average >= 3.5) colorKey = 'Predicted_absent_0.6';
+          else if (average >= 2.5) colorKey = 'Predicted_absent_0.7';
+          else if (average >= 1.5) colorKey = 'Predicted_absent_0.8';
+          else if (average >= 0.5) colorKey = 'Predicted_absent_0.9';
+          return { 
+            species: cleanName,
+            originalSpecies: species,
+            average: average,
+            iconUrl: iconUrl,
+            color: colorKey
           };
         })
         .sort((a, b) => b.average - a.average),
       {
         y: 'species', 
         x: 'average', 
-        fill: 'steelblue',
+        fill: 'color',
+        r: 4,
         title: d => d.species + ': ' + d.average.toFixed(3)
       }
     ),
@@ -112,10 +162,10 @@ Plot.plot({
          .sort((a, b) => b.average - a.average),
        {
          y: 'species',
-         x: -0.5,
+         x: -1.0,
          src: 'iconUrl',
-         width: 35,
-         height: 35,
+         width: 20,
+         height: 20,
          title: d => d.species + ' icon'
        }
      ),
@@ -138,9 +188,9 @@ Plot.plot({
         .sort((a, b) => b.average - a.average),
       {
         y: 'species',
-        x: -0.4,
+        x: -2.0,
         text: '🪲',
-                 fontSize: 10,
+                 fontSize: 7,
         fill: '#666',
         title: d => d.species + ' (no icon available)'
       }
@@ -148,7 +198,7 @@ Plot.plot({
   ],
   y: {
     label: '',
-    fontSize: 27,
+    fontSize: 19,
     tickPadding: 20,
     domain: Object.keys(data[0])
       .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value')
@@ -168,7 +218,7 @@ Plot.plot({
   },
   x: {
     label: 'Likelihood',
-    fontSize: 17,
+    fontSize: 12,
     grid: true,
     domain: [-0.8, Math.max(...Object.keys(data[0])
       .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value')
@@ -183,14 +233,18 @@ Plot.plot({
       return d;
     }
   },
+  color: {
+    range: ['#053061', '#2166ac', '#4393c3', '#92c5de', '#d1e5f0', '#f7f7f7', '#fddbc7', '#f4a582', '#d6604d', '#b2182b', '#67001f'],
+    domain: ['Predicted_absent_1', 'Predicted_absent_0.9', 'Predicted_absent_0.8', 'Predicted_absent_0.7', 'Predicted_absent_0.6', 'Equivocal', 'Predicted_present_0.6', 'Predicted_present_0.7', 'Predicted_present_0.8', 'Predicted_present_0.9', 'Predicted_present_1']
+  },
   style: {
-    fontSize: '17px'
+    fontSize: '12px'
   },
   title: 'Beetles found at ' + data[0].lat.toFixed(2) + ', ' + data[0].lng.toFixed(2),
-  width: 500,
-  height: 560,
-  marginLeft: 180,
-  marginBottom: 80
+  width: 300,
+  height: 390,
+  marginLeft: 110,
+  marginBottom: 40
 })
 "
 
