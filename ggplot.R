@@ -93,86 +93,104 @@ Plot.plot({
         title: d => d.species + ': ' + d.average.toFixed(3)
       }
     ),
-    // Icons positioned to the left of the y-axis
-    Plot.image(
-      Object.keys(data[0])
-        .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value')
-        .map(species => {
-          var cleanName = species.replace(/[_]/g, ' ');
-          var average = data.reduce((sum, d) => sum + (d[species] || 0), 0) / data.length;
-          var iconUrl = factorIcons && factorIcons[species] ? factorIcons[species] : null;
-          return { 
-            species: cleanName,
-            originalSpecies: species,
-            average: average,
-            iconUrl: iconUrl
-          };
-        })
-        .filter(d => d.iconUrl)
-        .sort((a, b) => b.average - a.average),
-      {
-        y: 'species',
-        x: -0.5,
-        src: 'iconUrl',
-        width: 25,
-        height: 25,
-        title: d => d.species + ' icon'
-      }
-    ),
-    // Beetle emoji for species without icons
-    Plot.text(
-      Object.keys(data[0])
-        .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value')
-        .map(species => {
-          var cleanName = species.replace(/[_]/g, ' ');
-          var average = data.reduce((sum, d) => sum + (d[species] || 0), 0) / data.length;
-          var iconUrl = factorIcons && factorIcons[species] ? factorIcons[species] : null;
-          return { 
-            species: cleanName,
-            originalSpecies: species,
-            average: average,
-            iconUrl: iconUrl
-          };
-        })
+         // Icons positioned to the left of the y-axis
+     Plot.image(
+       Object.keys(data[0])
+         .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value')
+         .map(species => {
+           var cleanName = species.replace(/[_]/g, ' ');
+           var average = data.reduce((sum, d) => sum + (d[species] || 0), 0) / data.length;
+           var iconUrl = factorIcons && factorIcons[species] ? factorIcons[species] : null;
+           return { 
+             species: cleanName,
+             originalSpecies: species,
+             average: average,
+             iconUrl: iconUrl
+           };
+         })
+         .filter(d => d.iconUrl)
+         .sort((a, b) => b.average - a.average),
+       {
+         y: 'species',
+         x: -0.5,
+         src: 'iconUrl',
+         width: 35,
+         height: 35,
+         title: d => d.species + ' icon'
+       }
+     ),
+         // Beetle emoji for species without icons
+     Plot.text(
+       Object.keys(data[0])
+         .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value')
+         .map(species => {
+           var cleanName = species.replace(/[_]/g, ' ');
+           var average = data.reduce((sum, d) => sum + (d[species] || 0), 0) / data.length;
+           var iconUrl = factorIcons && factorIcons[species] ? factorIcons[species] : null;
+           return { 
+             species: cleanName,
+             originalSpecies: species,
+             average: average,
+             iconUrl: iconUrl
+           };
+         })
         .filter(d => !d.iconUrl)
         .sort((a, b) => b.average - a.average),
       {
         y: 'species',
         x: -0.4,
         text: '🪲',
-        fontSize: 14,
+                 fontSize: 10,
         fill: '#666',
         title: d => d.species + ' (no icon available)'
       }
     )
   ],
   y: {
-    label: 'Species',
-    fontSize: 38,
+    label: '',
+    fontSize: 27,
+    tickPadding: 20,
     domain: Object.keys(data[0])
       .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value')
-      .map(species => ({
-        species: species.replace(/[_]/g, ' '),
-        average: data.reduce((sum, d) => sum + (d[species] || 0), 0) / data.length
-      }))
+      .map(species => {
+        var cleanName = species.replace(/[_]/g, ' ');
+        return {
+          species: cleanName,
+          average: data.reduce((sum, d) => sum + (d[species] || 0), 0) / data.length
+        };
+      })
       .sort((a, b) => b.average - a.average)
-      .map(d => d.species)
+      .map(d => d.species),
+    tickFormat: function(d) {
+      var parts = d.split(' ');
+      return parts.length >= 2 ? parts[0].charAt(0) + '. ' + parts[1] : d;
+    }
   },
   x: {
-    label: 'Average Prediction Value',
-    fontSize: 24,
+    label: 'Likelihood',
+    fontSize: 17,
     grid: true,
     domain: [-0.8, Math.max(...Object.keys(data[0])
       .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value')
-      .map(species => data.reduce((sum, d) => sum + (d[species] || 0), 0) / data.length)) * 1.1]
+      .map(species => data.reduce((sum, d) => sum + (d[species] || 0), 0) / data.length)) * 1.1],
+    ticks: [0, 3, 5, 7, 10],
+    tickFormat: function(d) {
+      if (d === 0) return 'Absent';
+      if (d === 3) return '';
+      if (d === 5) return 'Unsure';
+      if (d === 7) return '';
+      if (d === 10) return 'Present';
+      return d;
+    }
   },
   style: {
-    fontSize: '24px'
+    fontSize: '17px'
   },
   title: 'Beetles found at ' + data[0].lat.toFixed(2) + ', ' + data[0].lng.toFixed(2),
-  width: 600,
-  height: 600,
-  marginLeft: 280
+  width: 500,
+  height: 560,
+  marginLeft: 180,
+  marginBottom: 80
 })
 "
 
@@ -182,10 +200,9 @@ predictions_tab <- spacetimeview(
   style = 'Summary',
   summary_radius = 7000,
   summary_height = 10,
-  visible_controls = c('column_to_plot', 'enable_clicked_tooltips'),
+  visible_controls = c('column_to_plot'),
   control_names = c(
-    column_to_plot = 'Select a beetle species',
-    enable_clicked_tooltips = 'Enable Clickable Charts'
+    column_to_plot = 'Select a beetle species'
   ),
   observable = histogram_code,
   factor_levels = factor_levels_list,
@@ -244,8 +261,6 @@ predictions_tab <- spacetimeview(
     "Sisyphus rubrus" = prediction_colours,
     "Sisyphus spinipes" = prediction_colours
   ),
-  # CRITICAL: Enable clicked tooltips to show Observable plots
-  enableClickedTooltips = TRUE
 )
 
 occurrence_tab <- spacetimeview(
