@@ -324,7 +324,7 @@ occurrence_tab <- spacetimeview(
 
 dashboard <- predictions_tab + occurrence_tab + occurrence_tab
 
-names(dashboard) <- c('Predicted Occurrence', 'Available resources', 'Occurrences')
+names(dashboard) <- c('Predictions', 'Resources', 'Occurrences')
 
 plot(dashboard)
 
