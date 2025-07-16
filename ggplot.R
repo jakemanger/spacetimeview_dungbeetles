@@ -46,6 +46,15 @@ d <- d %>% select(matches('pred_class|decimal'))
 d <- d %>%
   rename_with(~ str_remove(.x, "pred_class_"), contains("pred_class_"))
 
+# Reverse the factor levels so that 1 = Predicted_absent_1 and 11 = Predicted_present_1
+reversed_plot_limits_breaks <- rev(plot_limits_breaks)
+
+# Convert all species columns to factors with reversed levels
+species_cols <- names(d)[!names(d) %in% c("decimalLatitude", "decimalLongitude")]
+for(col in species_cols) {
+  d[[col]] <- factor(d[[col]], levels = reversed_plot_limits_breaks)
+}
+
 names(d)
 
 spatial_predictions_centroids <- st_centroid(spatial_predictions)
@@ -54,26 +63,92 @@ species_columns <- names(d)[!names(d) %in% c("decimalLatitude", "decimalLongitud
 
 factor_levels_list <- list()
 for(species in species_columns) {
-  factor_levels_list[[species]] <- plot_limits_breaks
+  factor_levels_list[[species]] <- reversed_plot_limits_breaks
 }
 
-# Simple Observable code - shows average prediction value for each species
+# Observable code with beetle icons - fixed to avoid const declarations
 histogram_code <- "
 Plot.plot({
   marks: [
+    // Main bars
     Plot.barX(
       Object.keys(data[0])
         .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value')
-        .map(species => ({
-          species: species.replace(/[_]/g, ' '),
-          average: data.reduce((sum, d) => sum + (d[species] || 0), 0) / data.length
-        }))
+        .map(species => {
+          var cleanName = species.replace(/[_]/g, ' ');
+          var average = data.reduce((sum, d) => sum + (d[species] || 0), 0) / data.length;
+          var iconUrl = factorIcons && factorIcons[species] ? factorIcons[species] : null;
+          return { 
+            species: cleanName,
+            originalSpecies: species,
+            average: average,
+            iconUrl: iconUrl
+          };
+        })
         .sort((a, b) => b.average - a.average),
-      {y: 'species', x: 'average', fill: 'steelblue'}
+      {
+        y: 'species', 
+        x: 'average', 
+        fill: 'steelblue',
+        title: d => d.species + ': ' + d.average.toFixed(3)
+      }
+    ),
+    // Icons positioned to the left of the y-axis
+    Plot.image(
+      Object.keys(data[0])
+        .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value')
+        .map(species => {
+          var cleanName = species.replace(/[_]/g, ' ');
+          var average = data.reduce((sum, d) => sum + (d[species] || 0), 0) / data.length;
+          var iconUrl = factorIcons && factorIcons[species] ? factorIcons[species] : null;
+          return { 
+            species: cleanName,
+            originalSpecies: species,
+            average: average,
+            iconUrl: iconUrl
+          };
+        })
+        .filter(d => d.iconUrl)
+        .sort((a, b) => b.average - a.average),
+      {
+        y: 'species',
+        x: -0.5,
+        src: 'iconUrl',
+        width: 25,
+        height: 25,
+        title: d => d.species + ' icon'
+      }
+    ),
+    // Beetle emoji for species without icons
+    Plot.text(
+      Object.keys(data[0])
+        .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value')
+        .map(species => {
+          var cleanName = species.replace(/[_]/g, ' ');
+          var average = data.reduce((sum, d) => sum + (d[species] || 0), 0) / data.length;
+          var iconUrl = factorIcons && factorIcons[species] ? factorIcons[species] : null;
+          return { 
+            species: cleanName,
+            originalSpecies: species,
+            average: average,
+            iconUrl: iconUrl
+          };
+        })
+        .filter(d => !d.iconUrl)
+        .sort((a, b) => b.average - a.average),
+      {
+        y: 'species',
+        x: -0.4,
+        text: '🪲',
+        fontSize: 14,
+        fill: '#666',
+        title: d => d.species + ' (no icon available)'
+      }
     )
   ],
   y: {
     label: 'Species',
+    fontSize: 38,
     domain: Object.keys(data[0])
       .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value')
       .map(species => ({
@@ -85,14 +160,22 @@ Plot.plot({
   },
   x: {
     label: 'Average Prediction Value',
-    grid: true
+    fontSize: 24,
+    grid: true,
+    domain: [-0.8, Math.max(...Object.keys(data[0])
+      .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value')
+      .map(species => data.reduce((sum, d) => sum + (d[species] || 0), 0) / data.length)) * 1.1]
   },
-  title: 'Average Prediction Values by Species',
-  width: 800,
+  style: {
+    fontSize: '24px'
+  },
+  title: 'Beetles found at ' + data[0].lat.toFixed(2) + ', ' + data[0].lng.toFixed(2),
+  width: 600,
   height: 600,
-  marginLeft: 200
+  marginLeft: 280
 })
 "
+
 
 predictions_tab <- spacetimeview(
   data = d, 
