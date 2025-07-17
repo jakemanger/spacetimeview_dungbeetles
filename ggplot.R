@@ -315,6 +315,7 @@ predictions_tab <- spacetimeview(
     "Sisyphus rubrus" = prediction_colours,
     "Sisyphus spinipes" = prediction_colours
   ),
+  country_codes = 'AU'
 )
 
 occurrence_tab <- spacetimeview(
@@ -329,11 +330,3 @@ names(dashboard) <- c('Predictions', 'Resources', 'Occurrences')
 plot(dashboard)
 
 save(dashboard, "my_dashboard.html")
-
-# INSTRUCTIONS FOR USING OBSERVABLE PLOTS:
-# 1. Observable plots only appear in TOOLTIPS, not in the main interface
-# 2. You must set enableClickedTooltips = TRUE 
-# 3. You must add 'enable_clicked_tooltips' to visible_controls to show the toggle
-# 4. Click on hexagons/grid cells in the Summary view to see the Observable plot
-# 5. The Observable code should be a simple expression that returns Plot.plot(...)
-# 6. The 'data' variable contains the filtered data for the clicked area
