@@ -96,8 +96,12 @@ occurrence_p <- spacetimeview(
     )
   ),
   # polygons = aus_states,
-  visible_controls = c('aggregate', 'filter'),
-  control_names = c('aggregate' = 'Metric')
+  # visible_controls = c('aggregate', 'filter'),
+  # control_names = c('aggregate' = 'Metric'),
+  menu_text = 'Click on the map to see measurements from traps, or select a species to view where we have found them 👇',
+  initial_latitude = -25.007754997248703, 
+  initial_longitude = 134.35406022625756,
+  initial_zoom = 3
 )
 
 
@@ -410,7 +414,11 @@ predictions_tab <- spacetimeview(
   ),
   country_codes = 'AU',
   header_title = "Dung Beetles of Australia",
-  social_links = c('github'='https://github.com/jakemanger/spacetimeview_dungbeetles')
+  social_links = c('github'='https://github.com/jakemanger/spacetimeview_dungbeetles'),
+  menu_text = 'Click on the map to see beetles found there, or select a species to view its range 👇',
+  initial_latitude = -25.007754997248703, 
+  initial_longitude = 134.35406022625756,
+  initial_zoom = 3
 )
 
 
