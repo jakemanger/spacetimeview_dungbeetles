@@ -34,22 +34,24 @@ plot_limits_breaks <-  c(
 
 d <- readRDS("presence_model_predictions_points.rds")
 d <- d %>%
-  # keep only prediction columns and coordinates
-  select(contains("pred_class_") | decimalLatitude | decimalLongitude) %>%
+  # keep only prediction columns, richness, and coordinates
+  select(contains("pred_class_") | pred_richness_median | decimalLatitude | decimalLongitude) %>%
   # clean up column names
-  rename_with(~ str_remove(.x, "pred_class_"), contains("pred_class_"))
+  rename_with(~ str_remove(.x, "pred_class_"), contains("pred_class_")) %>%
+  # rename richness column
+  rename("Number of species" = pred_richness_median)
 
 # reverse factor levels so 1 = absent and 11 = present
 reversed_plot_limits_breaks <- rev(plot_limits_breaks)
 
-species_cols <- names(d)[!names(d) %in% c("decimalLatitude", "decimalLongitude")]
+species_cols <- names(d)[!names(d) %in% c("decimalLatitude", "decimalLongitude", "Number of species")]
 for(col in species_cols) {
   d[[col]] <- factor(d[[col]], levels = reversed_plot_limits_breaks)
 }
 
 names(d)
 
-species_columns <- names(d)[!names(d) %in% c("decimalLatitude", "decimalLongitude")]
+species_columns <- names(d)[!names(d) %in% c("decimalLatitude", "decimalLongitude", "Number of species")]
 
 factor_levels_list <- list()
 for(species in species_columns) {
@@ -244,6 +246,11 @@ legend_remapping <- c(
   "Predicted_absent_1" = "Absent"
 )
 
+d <- d %>% 
+  select(`Number of species`, everything())
+
+legend_order <- c(10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
+
 predictions_tab <- spacetimeview(
   data = d, 
   style = 'Summary',
@@ -255,7 +262,33 @@ predictions_tab <- spacetimeview(
   ),
   observable = histogram_code,
   factor_levels = factor_levels_list,
-  legend_order = c(10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0),
+  legend_order = list(
+    "Bubas bison" = legend_order,
+    "Bubas bubalus" = legend_order,
+    "Copris elphenor" = legend_order,
+    "Copris hispanus" = legend_order,
+    "Digitonthophagus gazella" = legend_order,
+    "Euoniticellus africanus" = legend_order,
+    "Euoniticellus fulvus" = legend_order,
+    "Euoniticellus intermedius" = legend_order,
+    "Euoniticellus pallipes" = legend_order,
+    "Geotrupes spiniger" = legend_order,
+    "Liatongus militaris" = legend_order,
+    "Onitis alexis" = legend_order,
+    "Onitis aygulus" = legend_order,
+    "Onitis caffer" = legend_order,
+    "Onitis pecuarius" = legend_order,
+    "Onitis vanderkelleni" = legend_order,
+    "Onitis viridulus" = legend_order,
+    "Onthophagus binodis" = legend_order,
+    "Onthophagus nigriventris" = legend_order,
+    "Onthophagus obliquus" = legend_order,
+    "Onthophagus sagittarius" = legend_order,
+    "Onthophagus taurus" = legend_order,
+    "Onthophagus vacca" = legend_order,
+    "Sisyphus rubrus" = legend_order,
+    "Sisyphus spinipes" = legend_order
+  ),
   legend_labels = list(
     "Bubas bison" = legend_remapping,
     "Bubas bubalus" = legend_remapping,
@@ -284,6 +317,7 @@ predictions_tab <- spacetimeview(
     "Sisyphus spinipes" = legend_remapping
   ),
   factor_icons = list(
+    "Number of species" = "public/beetle_images/Species_richness.jpg",
     "Bubas bison" = "public/beetle_images/Bubas_bison.jpg",
     "Bubas bubalus" = "public/beetle_images/Bubas_bubalus.jpg",
     "Copris elphenor" = "public/beetle_images/Copris_elphenor.jpg",
@@ -340,13 +374,12 @@ predictions_tab <- spacetimeview(
   country_codes = 'AU',
   header_title = "Dung Beetles of Australia",
   social_links = c('github'='https://github.com/jakemanger/spacetimeview_dungbeetles'),
-  menu_text = 'Click on the map to see beetles found there, or select a species to view its range 👇',
+  menu_text = 'Click on the map to see beetles predicted to be found there, or select a species to view its range 👇',
   initial_latitude = -27.007754997248703, 
   initial_longitude = 134.35406022625756,
   initial_zoom = 4,
-  legend_direction_text = 'Likelihood'
+  legend_direction_text = c("Bubas bison" = "Likelihood", "Bubas bubalus" = "Likelihood", "Copris elphenor" = "Likelihood", "Copris hispanus" = "Likelihood", "Digitonthophagus gazella" = "Likelihood", "Euoniticellus africanus" = "Likelihood", "Euoniticellus fulvus" = "Likelihood", "Euoniticellus intermedius" = "Likelihood", "Euoniticellus pallipes" = "Likelihood", "Geotrupes spiniger" = "Likelihood", "Liatongus militaris" = "Likelihood", "Onitis alexis" = "Likelihood", "Onitis aygulus" = "Likelihood", "Onitis caffer" = "Likelihood", "Onitis pecuarius" = "Likelihood", "Onitis vanderkelleni" = "Likelihood", "Onitis viridulus" = "Likelihood", "Onthophagus binodis" = "Likelihood", "Onthophagus nigriventris" = "Likelihood", "Onthophagus obliquus" = "Likelihood", "Onthophagus sagittarius" = "Likelihood", "Onthophagus taurus" = "Likelihood", "Onthophagus vacca" = "Likelihood", "Sisyphus rubrus" = "Likelihood", "Sisyphus spinipes" = "Likelihood")
 )
-
 
 occurrence_d <- readRDS("presence_model_predictions_points.rds") %>%
   # get coordinates and occurrence status data
