@@ -231,10 +231,18 @@ Plot.plot({
   width: 300,
   height: 390,
   marginBottom: 40,
-  marginLeft: 110
+  marginLeft: 120
 })
 "
 
+legend_remapping <- c(
+  "Predicted_present_1" = "Present", "Predicted_present_0.9" = "", 
+  "Predicted_present_0.8" = "", "Predicted_present_0.7" = "", 
+  "Predicted_present_0.6" = "", "Equivocal" = "Unsure", 
+  "Predicted_absent_0.6" = "", "Predicted_absent_0.7" = "", 
+  "Predicted_absent_0.8" = "", "Predicted_absent_0.9" = "", 
+  "Predicted_absent_1" = "Absent"
+)
 
 predictions_tab <- spacetimeview(
   data = d, 
@@ -248,6 +256,33 @@ predictions_tab <- spacetimeview(
   observable = histogram_code,
   factor_levels = factor_levels_list,
   legend_order = c(10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0),
+  legend_labels = list(
+    "Bubas bison" = legend_remapping,
+    "Bubas bubalus" = legend_remapping,
+    "Copris elphenor" = legend_remapping,
+    "Copris hispanus" = legend_remapping,
+    "Digitonthophagus gazella" = legend_remapping,
+    "Euoniticellus africanus" = legend_remapping,
+    "Euoniticellus fulvus" = legend_remapping,
+    "Euoniticellus intermedius" = legend_remapping,
+    "Euoniticellus pallipes" = legend_remapping,
+    "Geotrupes spiniger" = legend_remapping,
+    "Liatongus militaris" = legend_remapping,
+    "Onitis alexis" = legend_remapping,
+    "Onitis aygulus" = legend_remapping,
+    "Onitis caffer" = legend_remapping,
+    "Onitis pecuarius" = legend_remapping,
+    "Onitis vanderkelleni" = legend_remapping,
+    "Onitis viridulus" = legend_remapping,
+    "Onthophagus binodis" = legend_remapping,
+    "Onthophagus nigriventris" = legend_remapping,
+    "Onthophagus obliquus" = legend_remapping,
+    "Onthophagus sagittarius" = legend_remapping,
+    "Onthophagus taurus" = legend_remapping,
+    "Onthophagus vacca" = legend_remapping,
+    "Sisyphus rubrus" = legend_remapping,
+    "Sisyphus spinipes" = legend_remapping
+  ),
   factor_icons = list(
     "Bubas bison" = "public/beetle_images/Bubas_bison.jpg",
     "Bubas bubalus" = "public/beetle_images/Bubas_bubalus.jpg",
@@ -306,9 +341,10 @@ predictions_tab <- spacetimeview(
   header_title = "Dung Beetles of Australia",
   social_links = c('github'='https://github.com/jakemanger/spacetimeview_dungbeetles'),
   menu_text = 'Click on the map to see beetles found there, or select a species to view its range 👇',
-  initial_latitude = -25.007754997248703, 
+  initial_latitude = -27.007754997248703, 
   initial_longitude = 134.35406022625756,
-  initial_zoom = 3
+  initial_zoom = 4,
+  legend_direction_text = 'Likelihood'
 )
 
 
@@ -531,7 +567,7 @@ Plot.plot({
   title: 'Beetles found at ' + data[0].lat.toFixed(2) + ', ' + data[0].lng.toFixed(2),
   width: 300,
   height: 390,
-  marginLeft: 110,
+  marginLeft: 120,
   marginBottom: 40,
 })
 "
@@ -596,10 +632,10 @@ occurrence_tab <- spacetimeview(
   country_codes = 'AU',
   header_title = "Dung Beetles of Australia",
   social_links = c('github'='https://github.com/jakemanger/spacetimeview_dungbeetles'),
-  menu_text = 'Click on the map to see actual beetle occurrences, or select a species to view where it has been found 👇',
-  initial_latitude = -25.007754997248703, 
+  menu_text = 'Click on the map to see what beetles are found there, or select a species to view its observed range 👇',
+  initial_latitude = -27.007754997248703, 
   initial_longitude = 134.35406022625756,
-  initial_zoom = 3
+  initial_zoom = 4
 )
 
 plt <- predictions_tab + occurrence_tab
