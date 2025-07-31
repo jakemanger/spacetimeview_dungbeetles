@@ -64,7 +64,7 @@ Plot.plot({
     // Lollipop sticks (vertical lines from axis to dot)
     Plot.link(
       Object.keys(data[0])
-        .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value')
+        .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value' && key !== 'Number of species' && !key.includes('No. of') && !key.includes('species'))
         .map(species => {
           var cleanName = species.replace(/[_]/g, ' ');
           var average = data.reduce((sum, d) => sum + (d[species] || 0), 0) / data.length;
@@ -101,7 +101,7 @@ Plot.plot({
     // Lollipop dots
     Plot.dot(
       Object.keys(data[0])
-        .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value')
+        .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value' && key !== 'Number of species' && !key.includes('richness'))
         .map(species => {
           var cleanName = species.replace(/[_]/g, ' ');
           var average = data.reduce((sum, d) => sum + (d[species] || 0), 0) / data.length;
@@ -137,7 +137,7 @@ Plot.plot({
          // Icons positioned to the left of the y-axis
      Plot.image(
        Object.keys(data[0])
-         .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value')
+         .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value' && key !== 'Number of species')
          .map(species => {
            var cleanName = species.replace(/[_]/g, ' ');
            var average = data.reduce((sum, d) => sum + (d[species] || 0), 0) / data.length;
@@ -163,7 +163,7 @@ Plot.plot({
          // Beetle emoji for species without icons
      Plot.text(
        Object.keys(data[0])
-         .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value')
+         .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value' && key !== 'Number of species')
          .map(species => {
            var cleanName = species.replace(/[_]/g, ' ');
            var average = data.reduce((sum, d) => sum + (d[species] || 0), 0) / data.length;
@@ -192,7 +192,7 @@ Plot.plot({
     fontSize: 19,
     tickPadding: 20,
     domain: Object.keys(data[0])
-      .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value')
+      .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value' && key !== 'Number of species')
       .map(species => {
         var cleanName = species.replace(/[_]/g, ' ');
         return {
@@ -212,7 +212,7 @@ Plot.plot({
     fontSize: 12,
     grid: true,
     domain: [-0.8, Math.max(...Object.keys(data[0])
-      .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value')
+      .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value' && key !== 'Number of species')
       .map(species => data.reduce((sum, d) => sum + (d[species] || 0), 0) / data.length)) * 1.1],
     ticks: [0, 5, 10],
     tickFormat: function(d) {
@@ -374,7 +374,7 @@ predictions_tab <- spacetimeview(
   country_codes = 'AU',
   header_title = "Dung Beetles of Australia",
   social_links = c('github'='https://github.com/jakemanger/spacetimeview_dungbeetles'),
-  menu_text = 'Click on the map to see beetles predicted to be found there, or select a species to view its range 👇',
+  menu_text = 'Click on the map to see what beetles are predicted to be found there, or select a species to view its range 👇',
   initial_latitude = -27.007754997248703, 
   initial_longitude = 134.35406022625756,
   initial_zoom = 4,
@@ -384,6 +384,8 @@ predictions_tab <- spacetimeview(
 occurrence_d <- readRDS("presence_model_predictions_points.rds") %>%
   # get coordinates and occurrence status data
   select(decimalLatitude, decimalLongitude, starts_with("occurrenceStatus_")) %>%
+  # explicitly exclude any richness columns that might have leaked through
+  select(-contains("richness"), -contains("pred_richness")) %>%
   # clean up column names
   rename_with(~ str_remove(.x, "occurrenceStatus_"), starts_with("occurrenceStatus_")) %>%
   # convert to Found/Not found factors
@@ -414,7 +416,7 @@ Plot.plot({
     // Bar chart showing presence/absence status
     Plot.barX(
       Object.keys(data[0])
-        .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value')
+        .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value' && key !== 'Number of species' && !key.includes('richness'))
         .map(species => {
           var cleanName = species.replace(/[_]/g, ' ');
           
@@ -461,7 +463,7 @@ Plot.plot({
     // Icons positioned to the left of the y-axis
     Plot.image(
       Object.keys(data[0])
-        .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value')
+        .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value' && key !== 'Number of species' && !key.includes('richness'))
         .map(species => {
           var cleanName = species.replace(/[_]/g, ' ');
           
@@ -503,7 +505,7 @@ Plot.plot({
     // Beetle emoji for species without icons
     Plot.text(
       Object.keys(data[0])
-        .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value')
+        .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value' && key !== 'Number of species' && !key.includes('richness'))
         .map(species => {
           var cleanName = species.replace(/[_]/g, ' ');
           
@@ -548,7 +550,7 @@ Plot.plot({
     fontSize: 19,
     tickPadding: 20,
     domain: Object.keys(data[0])
-      .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value')
+      .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value' && key !== 'Number of species')
       .map(species => {
         var cleanName = species.replace(/[_]/g, ' ');
         
