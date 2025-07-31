@@ -251,6 +251,14 @@ d <- d %>%
 
 legend_order <- c(10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
 
+
+about_text = "
+  <h2>About This Dataset</h2>
+  <p>These maps show where dung beetles are found in Australia. The visualisation shows the likelihood of finding a dung beetle at a given location, based on modelling from collection and trapping records in the area.</p>
+  <p>These data were collected and analysed by the University of Western Australia on behalf of Meat and Livestock Australia.</p>
+  <p>Data curation and modelling was lead by <a href='https://research-repository.uwa.edu.au/en/persons/jacob-berson'>Dr Jacob Berson</a> and <a href='https://research-repository.uwa.edu.au/en/persons/theo-evans'>Associate Professor Theo Evans</a>. The website was created by <a href='https://github.com/jakemanger'>Jake Manger</a>.</p>
+"
+
 predictions_tab <- spacetimeview(
   data = d, 
   style = 'Summary',
@@ -378,7 +386,8 @@ predictions_tab <- spacetimeview(
   initial_latitude = -27.007754997248703, 
   initial_longitude = 134.35406022625756,
   initial_zoom = 4,
-  legend_direction_text = c("Bubas bison" = "Likelihood", "Bubas bubalus" = "Likelihood", "Copris elphenor" = "Likelihood", "Copris hispanus" = "Likelihood", "Digitonthophagus gazella" = "Likelihood", "Euoniticellus africanus" = "Likelihood", "Euoniticellus fulvus" = "Likelihood", "Euoniticellus intermedius" = "Likelihood", "Euoniticellus pallipes" = "Likelihood", "Geotrupes spiniger" = "Likelihood", "Liatongus militaris" = "Likelihood", "Onitis alexis" = "Likelihood", "Onitis aygulus" = "Likelihood", "Onitis caffer" = "Likelihood", "Onitis pecuarius" = "Likelihood", "Onitis vanderkelleni" = "Likelihood", "Onitis viridulus" = "Likelihood", "Onthophagus binodis" = "Likelihood", "Onthophagus nigriventris" = "Likelihood", "Onthophagus obliquus" = "Likelihood", "Onthophagus sagittarius" = "Likelihood", "Onthophagus taurus" = "Likelihood", "Onthophagus vacca" = "Likelihood", "Sisyphus rubrus" = "Likelihood", "Sisyphus spinipes" = "Likelihood")
+  legend_direction_text = c("Bubas bison" = "Likelihood", "Bubas bubalus" = "Likelihood", "Copris elphenor" = "Likelihood", "Copris hispanus" = "Likelihood", "Digitonthophagus gazella" = "Likelihood", "Euoniticellus africanus" = "Likelihood", "Euoniticellus fulvus" = "Likelihood", "Euoniticellus intermedius" = "Likelihood", "Euoniticellus pallipes" = "Likelihood", "Geotrupes spiniger" = "Likelihood", "Liatongus militaris" = "Likelihood", "Onitis alexis" = "Likelihood", "Onitis aygulus" = "Likelihood", "Onitis caffer" = "Likelihood", "Onitis pecuarius" = "Likelihood", "Onitis vanderkelleni" = "Likelihood", "Onitis viridulus" = "Likelihood", "Onthophagus binodis" = "Likelihood", "Onthophagus nigriventris" = "Likelihood", "Onthophagus obliquus" = "Likelihood", "Onthophagus sagittarius" = "Likelihood", "Onthophagus taurus" = "Likelihood", "Onthophagus vacca" = "Likelihood", "Sisyphus rubrus" = "Likelihood", "Sisyphus spinipes" = "Likelihood"),
+  about_text = about_text
 )
 
 occurrence_d <- readRDS("presence_model_predictions_points.rds") %>%
@@ -670,7 +679,8 @@ occurrence_tab <- spacetimeview(
   menu_text = 'Click on the map to see what beetles are found there, or select a species to view its observed range 👇',
   initial_latitude = -27.007754997248703, 
   initial_longitude = 134.35406022625756,
-  initial_zoom = 4
+  initial_zoom = 4,
+  about_text = about_text
 )
 
 plt <- predictions_tab + occurrence_tab
