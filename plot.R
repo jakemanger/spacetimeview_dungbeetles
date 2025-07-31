@@ -4,9 +4,6 @@ library(dungfaunaR)
 
 devtools::load_all('../spacetimeview')
 
-
-spatial_predictions <- readRDS("spatial_predictions.rds")
-
 prediction_colours <-  c(
   "Predicted_present_1" = "#67001f",
   "Predicted_present_0.9" = "#b2182b",
@@ -51,8 +48,6 @@ for(col in species_cols) {
 }
 
 names(d)
-
-spatial_predictions_centroids <- st_centroid(spatial_predictions)
 
 species_columns <- names(d)[!names(d) %in% c("decimalLatitude", "decimalLongitude")]
 
@@ -333,8 +328,8 @@ occurrence_d <- readRDS("presence_model_predictions_points.rds") %>%
 
 # simple color scheme for found/not found
 occurrence_colours <- c(
-  "Found" = "#67001f",
-  "Not found" = "#053061"
+  "Found" = "#e74c3c",
+  "Not found" = "#3498db"
 )
 
 # factor levels for occurrence data
@@ -375,7 +370,7 @@ Plot.plot({
             notFoundCount: notFoundCount,
             totalSurveyed: totalSurveyed,
             iconUrl: iconUrl,
-            color: status === 'Present' ? '#67001f' : (status === 'Absent' ? '#053061' : '#cccccc'),
+            color: status === 'Present' ? '#e74c3c' : (status === 'Absent' ? '#3498db' : '#cccccc'),
             value: status === 'Present' ? 1 : (status === 'Absent' ? 0.5 : 0.05)
           };
         })
