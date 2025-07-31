@@ -155,8 +155,8 @@ Plot.plot({
          y: 'species',
          x: -1.0,
          src: 'iconUrl',
-         width: 20,
-         height: 20,
+         width: 18,
+         height: 18,
          title: d => d.species + ' icon'
        }
      ),
@@ -497,8 +497,8 @@ Plot.plot({
         y: 'species',
         x: -0.05,
         src: 'iconUrl',
-        width: 20,
-        height: 20,
+        width: 18,
+        height: 18,
         title: d => d.species + ' icon'
       }
     ),
