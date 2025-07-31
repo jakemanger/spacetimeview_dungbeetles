@@ -1,5 +1,6 @@
 # devtools::install_github("jakemanger/spacetimeview")
-library(spacetimeview)
+# library(spacetimeview)
+devtools::load_all('../spacetimeview')
 
 source('plot.R')
 

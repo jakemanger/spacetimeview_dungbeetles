@@ -2,109 +2,7 @@ library(tidyverse)
 library(sf)
 library(dungfaunaR)
 
-# library(spacetimeview)
 devtools::load_all('../spacetimeview')
-
-data('dungfauna_occurrence')
-# select the columns we need
-dungfauna_occurrence <- dungfauna_occurrence[
-  ,
-  c(
-    'decimalLatitude', 
-    'decimalLongitude',
-    'eventDate_collect',
-    'scientificName', 
-    'individualCount', 
-    'occurrenceStatus', 
-    'locationID_site', 
-    'county'
-  )
-]
-
-# rename the columns
-colnames(dungfauna_occurrence) <- c(
-  'Latitude', 
-  'Longitude',
-  'Date',
-  'Species',
-  'Abundance',
-  'Status',
-  'Site',
-  'County'
-)
-
-# load polygon data
-# Optional but recommended for better GeoJSON conversion
-if (!requireNamespace("geojsonsf", quietly = TRUE)) {
-  install.packages("geojsonsf")
-  library(geojsonsf)
-} else {
-  library(geojsonsf)
-}
-
-# Download Australian states polygons
-# For this example, we'll use the rnaturalearth package to get the Australian states
-if (!requireNamespace("rnaturalearth", quietly = TRUE)) {
-  install.packages("rnaturalearth")
-}
-if (!requireNamespace("rnaturalearthdata", quietly = TRUE)) {
-  install.packages("rnaturalearthdata")
-}
-
-# Get Australia states
-aus_states <- rnaturalearth::ne_states(country = "australia", returnclass = "sf")
-
-# now make your dashboard with one function call
-occurrence_p <- spacetimeview(
-  dungfauna_occurrence,
-  time_column_name = 'Date',
-  column_to_plot = 'Abundance',
-  color_scheme = 'Reds',
-  summary_radius = 20000,
-  animation_speed = 10,
-  summary_height = 100,
-  header_title='Dung Beetles of Australia',
-  social_links=c('github'='https://github.com/jakemanger/spacetimeview_dungbeetles'),
-  filter_column='Species',
-  factor_icons=list(
-    Species = list(
-      "Bubas bison" = "public/beetle_images/Bubas_bison.jpg",
-      "Bubas bubalus" = "public/beetle_images/Bubas_bubalus.jpg",
-      "Copris elphenor" = "public/beetle_images/Copris_elphenor.jpg",
-      "Copris hispanus" = "public/beetle_images/Copris_hispanus.jpg",
-      "Digitonthophagus gazella" = "public/beetle_images/Digitonthophagus_gazella.jpg",
-      "Euoniticellus africanus" = "public/beetle_images/Euoniticellus_africanus.jpg",
-      "Euoniticellus fulvus" = "public/beetle_images/Euoniticellus_fulvus.jpg",
-      "Euoniticellus intermedius" = "public/beetle_images/Euoniticellus_intermedius.jpg",
-      "Euoniticellus pallipes" = "public/beetle_images/Euoniticellus_pallipes.jpg",
-      "Geotrupes spiniger" = "public/beetle_images/Geotrupes_spiniger.jpg",
-      "Liatongus militaris" = "public/beetle_images/Liatongus_militaris.jpg",
-      "Onitis alexis" = "public/beetle_images/Onitis_alexis.jpg",
-      "Onitis aygulus" = "public/beetle_images/Onitis_aygulus.jpg",
-      "Onitis caffer" = "public/beetle_images/Onitis_caffer.jpg",
-      "Onitis pecuarius" = "public/beetle_images/Onitis_pecuarius.jpg",
-      "Onitis vanderkelleni" = "public/beetle_images/Onitis_vanderkelleni.jpg",
-      "Onitis viridulus" = "public/beetle_images/Onitis_viridulus.jpg",
-      "Onthophagus binodis" = "public/beetle_images/Onthophagus_binodis.jpg",
-      "Onthophagus nigriventris" = "public/beetle_images/Onthophagus_nigriventris.jpg",
-      "Onthophagus obliquus" = "public/beetle_images/Onthophagus_obliquus.jpg",
-      "Onthophagus sagittarius" = "public/beetle_images/Onthophagus_sagittarius.jpg",
-      "Onthophagus taurus" = "public/beetle_images/Onthophagus_taurus.jpg",
-      "Onthophagus vacca" = "public/beetle_images/Onthophagus_vacca.jpg",
-      "Sisyphus rubrus" = "public/beetle_images/Sisyphus_rubrus.jpg",
-      "Sisyphus spinipes" = "public/beetle_images/Sisyphus_spinipes.jpg"
-    )
-  ),
-  # polygons = aus_states,
-  # visible_controls = c('aggregate', 'filter'),
-  # control_names = c('aggregate' = 'Metric'),
-  menu_text = 'Click on the map to see measurements from traps, or select a species to view where we have found them 👇',
-  initial_latitude = -25.007754997248703, 
-  initial_longitude = 134.35406022625756,
-  initial_zoom = 3
-)
-
-
 
 
 spatial_predictions <- readRDS("spatial_predictions.rds")
@@ -138,12 +36,13 @@ plot_limits_breaks <-  c(
 ) 
 
 d <- readRDS("presence_model_predictions_points.rds")
-d <- d %>% pivot_wider(names_from=scientificName, values_from=c(pred_class, pred_prob_median))
-d <- d %>% select(matches('pred_class|decimal'))
 d <- d %>%
+  # keep only prediction columns and coordinates
+  select(contains("pred_class_") | decimalLatitude | decimalLongitude) %>%
+  # clean up column names
   rename_with(~ str_remove(.x, "pred_class_"), contains("pred_class_"))
 
-# reverse the factor levels so that 1 = Predicted_absent_1 and 11 = Predicted_present_1
+# reverse factor levels so 1 = absent and 11 = present
 reversed_plot_limits_breaks <- rev(plot_limits_breaks)
 
 species_cols <- names(d)[!names(d) %in% c("decimalLatitude", "decimalLongitude")]
@@ -162,7 +61,6 @@ for(species in species_columns) {
   factor_levels_list[[species]] <- plot_limits_breaks
 }
 
-# observable code with beetle icons - fixed to avoid const declarations
 histogram_code <- "
 Plot.plot({
   marks: [
@@ -319,12 +217,10 @@ Plot.plot({
     domain: [-0.8, Math.max(...Object.keys(data[0])
       .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value')
       .map(species => data.reduce((sum, d) => sum + (d[species] || 0), 0) / data.length)) * 1.1],
-    ticks: [0, 3, 5, 7, 10],
+    ticks: [0, 5, 10],
     tickFormat: function(d) {
       if (d === 0) return 'Absent';
-      if (d === 3) return '';
       if (d === 5) return 'Unsure';
-      if (d === 7) return '';
       if (d === 10) return 'Present';
       return d;
     }
@@ -336,11 +232,11 @@ Plot.plot({
   style: {
     fontSize: '12px'
   },
-  title: 'Beetles found at ' + data[0].lat.toFixed(2) + ', ' + data[0].lng.toFixed(2),
+  title: 'Beetles predicted to be found at ' + data[0].lat.toFixed(2) + ', ' + data[0].lng.toFixed(2),
   width: 300,
   height: 390,
-  marginLeft: 110,
-  marginBottom: 40
+  marginBottom: 40,
+  marginLeft: 110
 })
 "
 
@@ -358,7 +254,6 @@ predictions_tab <- spacetimeview(
   factor_levels = factor_levels_list,
   legend_order = c(10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0),
   factor_icons = list(
-    # "All" = "public/beetle_images/Bubas_bison.jpg",
     "Bubas bison" = "public/beetle_images/Bubas_bison.jpg",
     "Bubas bubalus" = "public/beetle_images/Bubas_bubalus.jpg",
     "Copris elphenor" = "public/beetle_images/Copris_elphenor.jpg",
@@ -422,10 +317,298 @@ predictions_tab <- spacetimeview(
 )
 
 
-dashboard <- predictions_tab + occurrence_p
+occurrence_d <- readRDS("presence_model_predictions_points.rds") %>%
+  # get coordinates and occurrence status data
+  select(decimalLatitude, decimalLongitude, starts_with("occurrenceStatus_")) %>%
+  # clean up column names
+  rename_with(~ str_remove(.x, "occurrenceStatus_"), starts_with("occurrenceStatus_")) %>%
+  # convert to Found/Not found factors
+  mutate(across(-c(decimalLatitude, decimalLongitude), ~ case_when(
+    .x == "Found" ~ factor("Found", levels = c("Found", "Not found")),
+    .x == "Not found" ~ factor("Not found", levels = c("Found", "Not found")),
+    TRUE ~ NA_character_
+  ))) %>%
+  # ensure proper factor levels
+  mutate(across(-c(decimalLatitude, decimalLongitude), ~ factor(.x, levels = c("Found", "Not found"))))
 
-names(dashboard) <- c('Predictions', 'Occurrences')
+# simple color scheme for found/not found
+occurrence_colours <- c(
+  "Found" = "#67001f",
+  "Not found" = "#053061"
+)
 
-plot(dashboard)
+# factor levels for occurrence data
+occurrence_factor_levels_list <- list()
+species_columns_occ <- names(occurrence_d)[!names(occurrence_d) %in% c("decimalLatitude", "decimalLongitude")]
+for(species in species_columns_occ) {
+  occurrence_factor_levels_list[[species]] <- c("Found", "Not found")
+}
 
-plt <- dashboard
+occurrence_histogram_code <- "
+Plot.plot({
+  marks: [
+    // Bar chart showing presence/absence status
+    Plot.barX(
+      Object.keys(data[0])
+        .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value')
+        .map(species => {
+          var cleanName = species.replace(/[_]/g, ' ');
+          
+          var foundCount = data.filter(d => {
+            var val = d[species];
+            return val == 0
+          }).length;
+          var notFoundCount = data.filter(d => {
+            var val = d[species];
+            return val == 1
+          }).length;
+          
+          var totalSurveyed = foundCount + notFoundCount;
+          var status = foundCount > 0 ? 'Present' : (totalSurveyed > 0 ? 'Absent' : 'No data');
+          var iconUrl = factorIcons && factorIcons[species] ? factorIcons[species] : null;
+          
+          return { 
+            species: cleanName,
+            originalSpecies: species,
+            status: status,
+            foundCount: foundCount,
+            notFoundCount: notFoundCount,
+            totalSurveyed: totalSurveyed,
+            iconUrl: iconUrl,
+            color: status === 'Present' ? '#67001f' : (status === 'Absent' ? '#053061' : '#cccccc'),
+            value: status === 'Present' ? 1 : (status === 'Absent' ? 0.5 : 0.05)
+          };
+        })
+        .sort((a, b) => {
+          if (a.status === 'Present' && b.status !== 'Present') return -1;
+          if (b.status === 'Present' && a.status !== 'Present') return 1;
+          if (a.status === 'Absent' && b.status === 'No data') return -1;
+          if (b.status === 'Absent' && a.status === 'No data') return 1;
+          return 0;
+        }),
+      {
+        y: 'species',
+        x: 'value',
+        fill: 'color',
+        title: d => d.species + ': ' + d.status + 
+                   (d.totalSurveyed > 0 ? ' (' + d.foundCount + ' found, ' + d.notFoundCount + ' not found)' : ' (no survey data)')
+      }
+    ),
+    // Icons positioned to the left of the y-axis
+    Plot.image(
+      Object.keys(data[0])
+        .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value')
+        .map(species => {
+          var cleanName = species.replace(/[_]/g, ' ');
+          
+          var foundCount = data.filter(d => {
+            var val = d[species];
+            return val == 0
+          }).length;
+          var notFoundCount = data.filter(d => {
+            var val = d[species];
+            return val == 1
+          }).length;
+          
+          var totalSurveyed = foundCount + notFoundCount;
+          var status = foundCount > 0 ? 'Present' : (totalSurveyed > 0 ? 'Absent' : 'No data');
+          var iconUrl = factorIcons && factorIcons[species] ? factorIcons[species] : null;
+          return { 
+            species: cleanName,
+            status: status,
+            iconUrl: iconUrl
+          };
+        })
+        .filter(d => d.iconUrl)
+        .sort((a, b) => {
+          if (a.status === 'Present' && b.status !== 'Present') return -1;
+          if (b.status === 'Present' && a.status !== 'Present') return 1;
+          if (a.status === 'Absent' && b.status === 'No data') return -1;
+          if (b.status === 'Absent' && a.status === 'No data') return 1;
+          return 0;
+        }),
+      {
+        y: 'species',
+        x: -0.05,
+        src: 'iconUrl',
+        width: 20,
+        height: 20,
+        title: d => d.species + ' icon'
+      }
+    ),
+    // Beetle emoji for species without icons
+    Plot.text(
+      Object.keys(data[0])
+        .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value')
+        .map(species => {
+          var cleanName = species.replace(/[_]/g, ' ');
+          
+          var foundCount = data.filter(d => {
+            var val = d[species];
+            return val == 0
+          }).length;
+          var notFoundCount = data.filter(d => {
+            var val = d[species];
+            return val == 1
+          }).length;
+          
+          var totalSurveyed = foundCount + notFoundCount;
+          var status = foundCount > 0 ? 'Present' : (totalSurveyed > 0 ? 'Absent' : 'No data');
+          var iconUrl = factorIcons && factorIcons[species] ? factorIcons[species] : null;
+          return { 
+            species: cleanName,
+            status: status,
+            iconUrl: iconUrl
+          };
+        })
+        .filter(d => !d.iconUrl)
+        .sort((a, b) => {
+          if (a.status === 'Present' && b.status !== 'Present') return -1;
+          if (b.status === 'Present' && a.status !== 'Present') return 1;
+          if (a.status === 'Absent' && b.status === 'No data') return -1;
+          if (b.status === 'Absent' && a.status === 'No data') return 1;
+          return 0;
+        }),
+      {
+        y: 'species',
+        x: -0.1,
+        text: '🪲',
+        fontSize: 7,
+        fill: '#666',
+        title: d => d.species + ' (no icon available)'
+      }
+    )
+  ],
+  y: {
+    label: '',
+    fontSize: 19,
+    tickPadding: 20,
+    domain: Object.keys(data[0])
+      .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value')
+      .map(species => {
+        var cleanName = species.replace(/[_]/g, ' ');
+        
+        var foundCount = data.filter(d => {
+          var val = d[species];
+          return val == 0
+        }).length;
+        var notFoundCount = data.filter(d => {
+          var val = d[species];
+          return val == 1
+        }).length;
+        
+        var totalSurveyed = foundCount + notFoundCount;
+        var status = foundCount > 0 ? 'Present' : (totalSurveyed > 0 ? 'Absent' : 'No data');
+        return {
+          species: cleanName,
+          status: status
+        };
+      })
+      .sort((a, b) => {
+        if (a.status === 'Present' && b.status !== 'Present') return -1;
+        if (b.status === 'Present' && a.status !== 'Present') return 1;
+        if (a.status === 'Absent' && b.status === 'No data') return -1;
+        if (b.status === 'Absent' && a.status === 'No data') return 1;
+        return 0;
+      })
+      .map(d => d.species),
+    tickFormat: function(d) {
+      var parts = d.split(' ');
+      return parts.length >= 2 ? parts[0].charAt(0) + '. ' + parts[1] : d;
+    }
+  },
+  x: {
+    label: '',
+    fontSize: 12,
+    grid: false,
+    domain: [0, 1],
+    ticks: [0.05, 0.5, 1],
+    tickFormat: function(d) {
+      if (d === 0.05) return 'Unknown';
+      if (d === 0.5) return 'Not Found';
+      if (d === 1) return 'Found';
+      return '';
+    }
+  },
+  style: {
+    fontSize: '12px'
+  },
+  title: 'Beetles found at ' + data[0].lat.toFixed(2) + ', ' + data[0].lng.toFixed(2),
+  width: 300,
+  height: 390,
+  marginLeft: 110,
+  marginBottom: 40,
+})
+"
+
+occurrence_tab <- spacetimeview(
+  data = occurrence_d, 
+  style = 'Summary',
+  summary_radius = 7000,
+  summary_height = 1,
+  visible_controls = c('column_to_plot'),
+  control_names = c(
+    column_to_plot = 'Select a beetle species'
+  ),
+  observable = occurrence_histogram_code,
+  factor_levels = occurrence_factor_levels_list,
+  factor_icons = list(
+    "Bubas bison" = "public/beetle_images/Bubas_bison.jpg",
+    "Copris elphenor" = "public/beetle_images/Copris_elphenor.jpg",
+    "Copris hispanus" = "public/beetle_images/Copris_hispanus.jpg",
+    "Digitonthophagus gazella" = "public/beetle_images/Digitonthophagus_gazella.jpg",
+    "Euoniticellus africanus" = "public/beetle_images/Euoniticellus_africanus.jpg",
+    "Euoniticellus fulvus" = "public/beetle_images/Euoniticellus_fulvus.jpg",
+    "Euoniticellus intermedius" = "public/beetle_images/Euoniticellus_intermedius.jpg",
+    "Euoniticellus pallipes" = "public/beetle_images/Euoniticellus_pallipes.jpg",
+    "Geotrupes spiniger" = "public/beetle_images/Geotrupes_spiniger.jpg",
+    "Liatongus militaris" = "public/beetle_images/Liatongus_militaris.jpg",
+    "Onitis alexis" = "public/beetle_images/Onitis_alexis.jpg",
+    "Onitis aygulus" = "public/beetle_images/Onitis_aygulus.jpg",
+    "Onitis caffer" = "public/beetle_images/Onitis_caffer.jpg",
+    "Onitis pecuarius" = "public/beetle_images/Onitis_pecuarius.jpg",
+    "Onitis vanderkelleni" = "public/beetle_images/Onitis_vanderkelleni.jpg",
+    "Onitis viridulus" = "public/beetle_images/Onitis_viridulus.jpg",
+    "Onthophagus binodis" = "public/beetle_images/Onthophagus_binodis.jpg",
+    "Onthophagus nigriventris" = "public/beetle_images/Onthophagus_nigriventris.jpg",
+    "Onthophagus obliquus" = "public/beetle_images/Onthophagus_obliquus.jpg",
+    "Onthophagus sagittarius" = "public/beetle_images/Onthophagus_sagittarius.jpg",
+    "Onthophagus taurus" = "public/beetle_images/Onthophagus_taurus.jpg",
+    "Sisyphus rubrus" = "public/beetle_images/Sisyphus_rubrus.jpg",
+    "Sisyphus spinipes" = "public/beetle_images/Sisyphus_spinipes.jpg"
+  ),
+  factor_colors = list(
+    "Bubas bison" = occurrence_colours,
+    "Digitonthophagus gazella" = occurrence_colours,
+    "Euoniticellus africanus" = occurrence_colours,
+    "Euoniticellus intermedius" = occurrence_colours,
+    "Euoniticellus pallipes" = occurrence_colours,
+    "Geotrupes spiniger" = occurrence_colours,
+    "Liatongus militaris" = occurrence_colours,
+    "Onitis alexis" = occurrence_colours,
+    "Onitis aygulus" = occurrence_colours,
+    "Onitis caffer" = occurrence_colours,
+    "Onitis pecuarius" = occurrence_colours,
+    "Onitis viridulus" = occurrence_colours,
+    "Onthophagus nigriventris" = occurrence_colours,
+    "Onthophagus sagittarius" = occurrence_colours,
+    "Onthophagus taurus" = occurrence_colours,
+    "Sisyphus rubrus" = occurrence_colours,
+    "Sisyphus spinipes" = occurrence_colours,
+    "Onthophagus binodis" = occurrence_colours,
+    "Euoniticellus fulvus" = occurrence_colours
+  ),
+  country_codes = 'AU',
+  header_title = "Dung Beetles of Australia",
+  social_links = c('github'='https://github.com/jakemanger/spacetimeview_dungbeetles'),
+  menu_text = 'Click on the map to see actual beetle occurrences, or select a species to view where it has been found 👇',
+  initial_latitude = -25.007754997248703, 
+  initial_longitude = 134.35406022625756,
+  initial_zoom = 3
+)
+
+plt <- predictions_tab + occurrence_tab
+
+names(plt) <- c('Predictions', 'Occurrences')
+
+plot(plt)
