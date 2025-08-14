@@ -190,7 +190,7 @@ Plot.plot({
   y: {
     label: '',
     fontSize: 19,
-    tickPadding: 20,
+    tickPadding: 15,
     domain: Object.keys(data[0])
       .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value' && key !== 'Number of species')
       .map(species => {
@@ -231,9 +231,10 @@ Plot.plot({
   },
   title: 'Beetles predicted to be found at ' + data[0].lat.toFixed(2) + ', ' + data[0].lng.toFixed(2),
   width: 300,
-  height: 390,
+  height: 380,
   marginBottom: 40,
-  marginLeft: 120
+  marginLeft: 120,
+  marginRight: 40
 })
 "
 
@@ -254,9 +255,9 @@ legend_order <- c(10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
 
 about_text = "
   <h2>About This Dataset</h2>
-  <p>These maps show where dung beetles are found in Australia. The visualisation shows the likelihood of finding a dung beetle at a given location, based on modelling from collection and trapping records in the area.</p>
+  <p>The data maps show where dung beetles are known to be found in Australia over the 12 months of the year, based on field sampling. The predictions show the likelihood of finding a dung beetle at a given location across Australia, based on modelling from sampling records.</p>
   <p>These data were collected and analysed by the University of Western Australia on behalf of Meat and Livestock Australia.</p>
-  <p>Data curation and modelling was lead by <a href='https://research-repository.uwa.edu.au/en/persons/jacob-berson'>Dr Jacob Berson</a> and <a href='https://research-repository.uwa.edu.au/en/persons/theo-evans'>Associate Professor Theo Evans</a>. The website was created by <a href='https://github.com/jakemanger'>Jake Manger</a>.</p>
+  <p>Data curation and modelling was led by <a href='https://research-repository.uwa.edu.au/en/persons/jacob-berson'>Dr Jacob Berson</a> and <a href='https://research-repository.uwa.edu.au/en/persons/theo-evans'>Associate Professor Theo Evans</a>. The website was created by <a href='https://github.com/jakemanger'>Jake Manger</a>.</p>
 "
 
 predictions_tab <- spacetimeview(
