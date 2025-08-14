@@ -223,7 +223,7 @@ Plot.plot({
     }
   },
   color: {
-    range: ['#053061', '#2166ac', '#4393c3', '#92c5de', '#d1e5f0', '#f7f7f7', '#fddbc7', '#f4a582', '#d6604d', '#b2182b', '#67001f'],
+    range: ['#053061', '#2166ac', '#4393c3', '#92c5de', '#d1e5f0', '#e3e3e3', '#fddbc7', '#f4a582', '#d6604d', '#b2182b', '#67001f'],
     domain: ['Predicted_absent_1', 'Predicted_absent_0.9', 'Predicted_absent_0.8', 'Predicted_absent_0.7', 'Predicted_absent_0.6', 'Equivocal', 'Predicted_present_0.6', 'Predicted_present_0.7', 'Predicted_present_0.8', 'Predicted_present_0.9', 'Predicted_present_1']
   },
   style: {
