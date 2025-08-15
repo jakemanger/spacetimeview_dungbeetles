@@ -34,40 +34,51 @@ plot_limits_breaks <-  c(
 
 d <- readRDS("presence_model_predictions_points.rds")
 d <- d %>%
-  # keep only prediction columns, richness, and coordinates
-  select(contains("pred_class_") | pred_richness_median | decimalLatitude | decimalLongitude) %>%
+  # keep only prediction columns, richness, and coordinates (using class predictions for main viz)
+  select(contains("pred_class_") | contains("pred_prob_0.95_lower_") | contains("pred_prob_0.95_upper_") | pred_richness_median | decimalLatitude | decimalLongitude) %>%
   # clean up column names
   rename_with(~ str_remove(.x, "pred_class_"), contains("pred_class_")) %>%
+  rename_with(~ paste0(str_remove(.x, "pred_prob_0.95_lower_"), "_lower"), contains("pred_prob_0.95_lower_")) %>%
+  rename_with(~ paste0(str_remove(.x, "pred_prob_0.95_upper_"), "_upper"), contains("pred_prob_0.95_upper_")) %>%
   # rename richness column
   rename("Number of species" = pred_richness_median)
 
 # reverse factor levels so 1 = absent and 11 = present
 reversed_plot_limits_breaks <- rev(plot_limits_breaks)
 
-species_cols <- names(d)[!names(d) %in% c("decimalLatitude", "decimalLongitude", "Number of species")]
+species_cols <- names(d)[!names(d) %in% c("decimalLatitude", "decimalLongitude", "Number of species") & !str_detect(names(d), "_lower|_upper")]
 for(col in species_cols) {
   d[[col]] <- factor(d[[col]], levels = reversed_plot_limits_breaks)
 }
 
 names(d)
 
-species_columns <- names(d)[!names(d) %in% c("decimalLatitude", "decimalLongitude", "Number of species")]
+species_columns <- names(d)[!names(d) %in% c("decimalLatitude", "decimalLongitude", "Number of species") & !str_detect(names(d), "_lower|_upper")]
 
 factor_levels_list <- list()
 for(species in species_columns) {
   factor_levels_list[[species]] <- plot_limits_breaks
 }
 
+
+
 histogram_code <- "
 Plot.plot({
   marks: [
-    // Lollipop sticks (vertical lines from axis to dot)
+    // Lollipop sticks (confidence interval lines)
     Plot.link(
       Object.keys(data[0])
-        .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value' && key !== 'Number of species' && !key.includes('No. of') && !key.includes('species'))
+        .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value' && key !== 'Number of species' && !key.includes('No. of') && !key.includes('species') && !key.includes('_lower') && !key.includes('_upper'))
         .map(species => {
           var cleanName = species.replace(/[_]/g, ' ');
           var average = data.reduce((sum, d) => sum + (d[species] || 0), 0) / data.length;
+          
+          // Get confidence bounds
+          var lowerKey = species + '_lower';
+          var upperKey = species + '_upper';
+          var lowerAverage = data.reduce((sum, d) => sum + (d[lowerKey] || 0), 0) / data.length * 10;
+          var upperAverage = data.reduce((sum, d) => sum + (d[upperKey] || 0), 0) / data.length * 10;
+          
           var iconUrl = factorIcons && factorIcons[species] ? factorIcons[species] : null;
           var colorKey = 'Predicted_absent_1';
           if (average >= 9) colorKey = 'Predicted_present_1';
@@ -84,6 +95,8 @@ Plot.plot({
             species: cleanName,
             originalSpecies: species,
             average: average,
+            lowerBound: lowerAverage,
+            upperBound: upperAverage,
             iconUrl: iconUrl,
             color: colorKey
           };
@@ -92,8 +105,8 @@ Plot.plot({
       {
         y1: 'species',
         y2: 'species',
-        x1: 0,
-        x2: 'average',
+        x1: 'lowerBound',
+        x2: 'upperBound',
         stroke: 'color',
         strokeWidth: 2
       }
@@ -101,7 +114,7 @@ Plot.plot({
     // Lollipop dots
     Plot.dot(
       Object.keys(data[0])
-        .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value' && key !== 'Number of species' && !key.includes('richness'))
+        .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value' && key !== 'Number of species' && !key.includes('richness') && !key.includes('_lower') && !key.includes('_upper'))
         .map(species => {
           var cleanName = species.replace(/[_]/g, ' ');
           var average = data.reduce((sum, d) => sum + (d[species] || 0), 0) / data.length;
@@ -137,7 +150,7 @@ Plot.plot({
          // Icons positioned to the left of the y-axis
      Plot.image(
        Object.keys(data[0])
-         .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value' && key !== 'Number of species')
+         .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value' && key !== 'Number of species' && !key.includes('_lower') && !key.includes('_upper'))
          .map(species => {
            var cleanName = species.replace(/[_]/g, ' ');
            var average = data.reduce((sum, d) => sum + (d[species] || 0), 0) / data.length;
@@ -163,7 +176,7 @@ Plot.plot({
          // Beetle emoji for species without icons
      Plot.text(
        Object.keys(data[0])
-         .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value' && key !== 'Number of species')
+         .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value' && key !== 'Number of species' && !key.includes('_lower') && !key.includes('_upper'))
          .map(species => {
            var cleanName = species.replace(/[_]/g, ' ');
            var average = data.reduce((sum, d) => sum + (d[species] || 0), 0) / data.length;
@@ -192,7 +205,7 @@ Plot.plot({
     fontSize: 19,
     tickPadding: 15,
     domain: Object.keys(data[0])
-      .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value' && key !== 'Number of species')
+      .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value' && key !== 'Number of species' && !key.includes('_lower') && !key.includes('_upper'))
       .map(species => {
         var cleanName = species.replace(/[_]/g, ' ');
         return {
@@ -212,7 +225,7 @@ Plot.plot({
     fontSize: 12,
     grid: true,
     domain: [-0.8, Math.max(...Object.keys(data[0])
-      .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value' && key !== 'Number of species')
+      .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value' && key !== 'Number of species' && !key.includes('_lower') && !key.includes('_upper'))
       .map(species => data.reduce((sum, d) => sum + (d[species] || 0), 0) / data.length)) * 1.1],
     ticks: [0, 5, 10],
     tickFormat: function(d) {
