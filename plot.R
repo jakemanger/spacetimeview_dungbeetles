@@ -697,8 +697,122 @@ occurrence_tab <- spacetimeview(
   about_text = about_text
 )
 
-plt <- predictions_tab + occurrence_tab
+library(tidyverse)
+library(ggplot2)
 
-names(plt) <- c('Predictions', 'Occurrences')
+time_series_data <- readRDS('temporal_model_predictions_points.rds')
+
+# diagnostic ggplots
+time_series_data |>
+  filter(id == 13145) |>
+  ggplot(aes(x = eventDate, y = `pred_abun_median_Onthophagus taurus`,
+             ymin = `pred_abun_0.95_lower_Onthophagus taurus`, ymax = `pred_abun_0.95_upper_Onthophagus taurus`)) +
+  geom_line(colour = "blue", lwd = 3) +
+  geom_ribbon(fill = "blue", alpha = 0.5) +
+  geom_point(inherit.aes = FALSE,
+             aes(x = eventDate, y = `individualCount_Onthophagus taurus`)) + 
+  scale_y_continuous(transform = "log") +
+  theme_bw()
+
+time_series_data |>
+  filter(id == 13145) |>
+  ggplot(aes(x = eventDate, y = `pred_prob_median_Onthophagus taurus`,
+             ymin = `pred_prob_0.95_lower_Onthophagus taurus`, ymax = `pred_prob_0.95_upper_Onthophagus taurus`)) +
+  geom_line(colour = "blue", lwd = 3) +
+  geom_ribbon(fill = "blue", alpha = 0.5) +
+  geom_point(inherit.aes = FALSE,
+             aes(x = eventDate, y = `occurrenceStatus_Onthophagus taurus`))
+
+
+time_series_data <- time_series_data %>%
+  # keep only occurrence status, time and coordinates
+  select(
+    contains("pred_prob_median_") 
+    | contains("pred_prob_0.95_lower_") 
+    | contains("pred_prob_0.95_upper_") 
+    | eventDate 
+    | decimalLatitude 
+    | decimalLongitude
+  ) %>%
+  # clean up column names
+  rename_with(~ str_remove(.x, "pred_prob_median_"), contains("pred_prob_median_")) %>%
+  rename_with(~ paste0(str_remove(.x, "pred_prob_0.95_lower_"), "_lower"), contains("pred_prob_0.95_lower_")) %>%
+  rename_with(~ paste0(str_remove(.x, "pred_prob_0.95_upper_"), "_upper"), contains("pred_prob_0.95_upper_"))
+
+
+time_series_tab <- spacetimeview(
+  time_series_data,
+  style = 'Summary',
+  summary_radius = 7000,
+  summary_height = 1,
+  visible_controls = c('column_to_plot'),
+  control_names = c(
+   column_to_plot = 'Select a beetle species'
+  ),
+  observable = occurrence_histogram_code,
+  factor_levels = occurrence_factor_levels_list,
+  factor_icons = list(
+   "Bubas bison" = "public/beetle_images/Bubas_bison.jpg",
+   "Copris elphenor" = "public/beetle_images/Copris_elphenor.jpg",
+   "Copris hispanus" = "public/beetle_images/Copris_hispanus.jpg",
+   "Digitonthophagus gazella" = "public/beetle_images/Digitonthophagus_gazella.jpg",
+   "Euoniticellus africanus" = "public/beetle_images/Euoniticellus_africanus.jpg",
+   "Euoniticellus fulvus" = "public/beetle_images/Euoniticellus_fulvus.jpg",
+   "Euoniticellus intermedius" = "public/beetle_images/Euoniticellus_intermedius.jpg",
+   "Euoniticellus pallipes" = "public/beetle_images/Euoniticellus_pallipes.jpg",
+   "Geotrupes spiniger" = "public/beetle_images/Geotrupes_spiniger.jpg",
+   "Liatongus militaris" = "public/beetle_images/Liatongus_militaris.jpg",
+   "Onitis alexis" = "public/beetle_images/Onitis_alexis.jpg",
+   "Onitis aygulus" = "public/beetle_images/Onitis_aygulus.jpg",
+   "Onitis caffer" = "public/beetle_images/Onitis_caffer.jpg",
+   "Onitis pecuarius" = "public/beetle_images/Onitis_pecuarius.jpg",
+   "Onitis vanderkelleni" = "public/beetle_images/Onitis_vanderkelleni.jpg",
+   "Onitis viridulus" = "public/beetle_images/Onitis_viridulus.jpg",
+   "Onthophagus binodis" = "public/beetle_images/Onthophagus_binodis.jpg",
+   "Onthophagus nigriventris" = "public/beetle_images/Onthophagus_nigriventris.jpg",
+   "Onthophagus obliquus" = "public/beetle_images/Onthophagus_obliquus.jpg",
+   "Onthophagus sagittarius" = "public/beetle_images/Onthophagus_sagittarius.jpg",
+   "Onthophagus taurus" = "public/beetle_images/Onthophagus_taurus.jpg",
+   "Sisyphus rubrus" = "public/beetle_images/Sisyphus_rubrus.jpg",
+   "Sisyphus spinipes" = "public/beetle_images/Sisyphus_spinipes.jpg"
+  ),
+  factor_colors = list(
+   "Bubas bison" = occurrence_colours,
+   "Digitonthophagus gazella" = occurrence_colours,
+   "Euoniticellus africanus" = occurrence_colours,
+   "Euoniticellus intermedius" = occurrence_colours,
+   "Euoniticellus pallipes" = occurrence_colours,
+   "Geotrupes spiniger" = occurrence_colours,
+   "Liatongus militaris" = occurrence_colours,
+   "Onitis alexis" = occurrence_colours,
+   "Onitis aygulus" = occurrence_colours,
+   "Onitis caffer" = occurrence_colours,
+   "Onitis pecuarius" = occurrence_colours,
+   "Onitis viridulus" = occurrence_colours,
+   "Onthophagus nigriventris" = occurrence_colours,
+   "Onthophagus sagittarius" = occurrence_colours,
+   "Onthophagus taurus" = occurrence_colours,
+   "Sisyphus rubrus" = occurrence_colours,
+   "Sisyphus spinipes" = occurrence_colours,
+   "Onthophagus binodis" = occurrence_colours,
+   "Euoniticellus fulvus" = occurrence_colours
+  ),
+  country_codes = 'AU',
+  header_title = "Dung Beetles of Australia",
+  social_links = c('github'='https://github.com/jakemanger/spacetimeview_dungbeetles'),
+  menu_text = 'Click on the map to see what beetles are found there, or select a species to view its observed range 👇',
+  initial_latitude = -27.007754997248703, 
+  initial_longitude = 134.35406022625756,
+  initial_zoom = 4,
+  about_text = about_text,
+  animation_speed = 6,
+  initial_time_mode = 'seasonal',
+  sticky_range = TRUE
+)
+time_series_tab
+
+plt <- time_series_tab + predictions_tab + occurrence_tab
+
+names(plt) <- c('Predictions over time', 'Predictions', 'Occurrences')
 
 plot(plt)
