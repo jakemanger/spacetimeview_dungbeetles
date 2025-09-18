@@ -32,7 +32,7 @@ plot_limits_breaks <-  c(
   "Predicted_absent_1"
 ) 
 
-d <- readRDS("presence_model_predictions_points.rds")
+d <- readRDS("presence_model_predictions_points_new.rds")
 d <- d %>%
   # keep only prediction columns, richness, and coordinates (using class predictions for main viz)
   select(contains("pred_class_") | contains("pred_prob_0.95_lower_") | contains("pred_prob_0.95_upper_") | pred_richness_median | decimalLatitude | decimalLongitude) %>%
@@ -404,7 +404,7 @@ predictions_tab <- spacetimeview(
   about_text = about_text
 )
 
-occurrence_d <- readRDS("presence_model_predictions_points.rds") %>%
+occurrence_d <- readRDS("presence_model_predictions_points_new.rds") %>%
   # get coordinates and occurrence status data
   select(decimalLatitude, decimalLongitude, starts_with("occurrenceStatus_")) %>%
   # explicitly exclude any richness columns that might have leaked through
