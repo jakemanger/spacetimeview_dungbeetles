@@ -396,7 +396,7 @@ predictions_tab <- spacetimeview(
   country_codes = 'AU',
   header_title = "Dung Beetles of Australia",
   social_links = c('github'='https://github.com/jakemanger/spacetimeview_dungbeetles'),
-  menu_text = 'Click on a coloured portion of the map to see the beetles predicted to be found there - grey portions predict no beetles\nor select a species from the dropdown menu to view its range 👇',
+  menu_text = 'Click on the map to see what beetles are predicted to be found there, or select a species to view its range 👇',
   initial_latitude = -27.007754997248703, 
   initial_longitude = 134.35406022625756,
   initial_zoom = 4,
@@ -690,7 +690,7 @@ occurrence_tab <- spacetimeview(
   country_codes = 'AU',
   header_title = "Dung Beetles of Australia",
   social_links = c('github'='https://github.com/jakemanger/spacetimeview_dungbeetles'),
-  menu_text = 'Click on the map to see observation details - red areas show beetles found, blue areas show areas searched but no beetles found, grey areas show areas not searched\nor select a species from the dropdown menu to view its observed range 👇',
+  menu_text = 'Click on the map to see what beetles are found there, or select a species to view its observed range 👇',
   initial_latitude = -27.007754997248703, 
   initial_longitude = 134.35406022625756,
   initial_zoom = 4,
@@ -699,7 +699,6 @@ occurrence_tab <- spacetimeview(
 
 library(tidyverse)
 library(ggplot2)
-
 
 time_series_data <- readRDS('temporal_model_predictions_points.rds')
 
@@ -873,7 +872,6 @@ time_series_tab <- spacetimeview(
   style = 'Summary',
   summary_radius = 5000,
   summary_height = 1,
-  repeated_points_aggregate = 'None',
   visible_controls = c('column_to_plot'),
   control_names = c(
    column_to_plot = 'Select a beetle species'
