@@ -759,7 +759,7 @@ Plot.plot({
       }
 
       // Use first species column as default (now contains predictions)
-      var selectedSpecies = speciesColumns[0];
+      var selectedSpecies = columnName
       var observedKey = selectedSpecies + '_observed';
       var lowerKey = selectedSpecies + '_pred_lower';
       var upperKey = selectedSpecies + '_pred_upper';
@@ -840,7 +840,7 @@ Plot.plot({
   ],
   color: {
     legend: true,
-    domain: ['Predicted abundance', 'Confidence interval', 'Observed counts'],
+    domain: ['Predicted abundance', 'Prediction interval', 'Observed counts'],
     range: ['#3498db', '#3498db', '#e74c3c']
   },
   x: {
@@ -849,11 +849,10 @@ Plot.plot({
     grid: true
   },
   y: {
-    type: 'log',
-    label: 'Abundance (log scale)',
+    //type: 'log',
+    //label: 'Abundance (log scale)',
     grid: true,
     tickFormat: d => d < 1 ? d.toFixed(2) : Math.round(d).toString(),
-    ticks: [0.01, 0.1, 1, 10, 100]
   },
   style: {
     fontSize: '12px'
