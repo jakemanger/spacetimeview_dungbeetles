@@ -34,16 +34,12 @@ plot_limits_breaks <-  c(
 
 d <- readRDS("presence_model_predictions_points_new.rds")
 d <- d %>%
-  # keep only prediction columns, richness, and coordinates (using class predictions for main viz)
   select(contains("pred_class_") | contains("pred_prob_0.95_lower_") | contains("pred_prob_0.95_upper_") | pred_richness_median | decimalLatitude | decimalLongitude) %>%
-  # clean up column names
   rename_with(~ str_remove(.x, "pred_class_"), contains("pred_class_")) %>%
   rename_with(~ paste0(str_remove(.x, "pred_prob_0.95_lower_"), "_lower"), contains("pred_prob_0.95_lower_")) %>%
   rename_with(~ paste0(str_remove(.x, "pred_prob_0.95_upper_"), "_upper"), contains("pred_prob_0.95_upper_")) %>%
-  # rename richness column
   rename("Number of species" = pred_richness_median)
 
-# reverse factor levels so 1 = absent and 11 = present
 reversed_plot_limits_breaks <- rev(plot_limits_breaks)
 
 species_cols <- names(d)[!names(d) %in% c("decimalLatitude", "decimalLongitude", "Number of species") & !str_detect(names(d), "_lower|_upper")]
@@ -65,15 +61,13 @@ for(species in species_columns) {
 histogram_code <- "
 Plot.plot({
   marks: [
-    // Lollipop sticks (confidence interval lines)
     Plot.link(
       Object.keys(data[0])
         .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value' && key !== 'Number of species' && !key.includes('No. of') && !key.includes('species') && !key.includes('_lower') && !key.includes('_upper'))
         .map(species => {
           var cleanName = species.replace(/[_]/g, ' ');
           var average = data.reduce((sum, d) => sum + (d[species] || 0), 0) / data.length;
-          
-          // Get confidence bounds
+
           var lowerKey = species + '_lower';
           var upperKey = species + '_upper';
           var lowerAverage = data.reduce((sum, d) => sum + (d[lowerKey] || 0), 0) / data.length * 10;
@@ -111,7 +105,6 @@ Plot.plot({
         strokeWidth: 2
       }
     ),
-    // Lollipop dots
     Plot.dot(
       Object.keys(data[0])
         .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value' && key !== 'Number of species' && !key.includes('richness') && !key.includes('_lower') && !key.includes('_upper'))
@@ -147,7 +140,6 @@ Plot.plot({
         title: d => d.species + ': ' + d.average.toFixed(3)
       }
     ),
-         // Icons positioned to the left of the y-axis
      Plot.image(
        Object.keys(data[0])
          .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value' && key !== 'Number of species' && !key.includes('_lower') && !key.includes('_upper'))
@@ -173,7 +165,6 @@ Plot.plot({
          title: d => d.species + ' icon'
        }
      ),
-         // Beetle emoji for species without icons
      Plot.text(
        Object.keys(data[0])
          .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value' && key !== 'Number of species' && !key.includes('_lower') && !key.includes('_upper'))
@@ -393,6 +384,32 @@ predictions_tab <- spacetimeview(
     "Sisyphus rubrus" = prediction_colours,
     "Sisyphus spinipes" = prediction_colours
   ),
+  selectable_columns = c(
+   "Number of species",
+   "Bubas bison",
+   "Copris elphenor",
+   "Copris hispanus",
+   "Digitonthophagus gazella",
+   "Euoniticellus africanus",
+   "Euoniticellus fulvus",
+   "Euoniticellus intermedius",
+   "Euoniticellus pallipes",
+   "Geotrupes spiniger",
+   "Liatongus militaris",
+   "Onitis alexis",
+   "Onitis aygulus",
+   "Onitis caffer",
+   "Onitis pecuarius",
+   "Onitis vanderkelleni",
+   "Onitis viridulus",
+   "Onthophagus binodis",
+   "Onthophagus nigriventris",
+   "Onthophagus obliquus",
+   "Onthophagus sagittarius",
+   "Onthophagus taurus",
+   "Sisyphus rubrus",
+   "Sisyphus spinipes"
+  ),
   country_codes = 'AU',
   header_title = "Dung Beetles of Australia",
   social_links = c('github'='https://github.com/jakemanger/spacetimeview_dungbeetles'),
@@ -405,28 +422,21 @@ predictions_tab <- spacetimeview(
 )
 
 occurrence_d <- readRDS("presence_model_predictions_points_new.rds") %>%
-  # get coordinates and occurrence status data
   select(decimalLatitude, decimalLongitude, starts_with("occurrenceStatus_")) %>%
-  # explicitly exclude any richness columns that might have leaked through
   select(-contains("richness"), -contains("pred_richness")) %>%
-  # clean up column names
   rename_with(~ str_remove(.x, "occurrenceStatus_"), starts_with("occurrenceStatus_")) %>%
-  # convert to Found/Not found factors
   mutate(across(-c(decimalLatitude, decimalLongitude), ~ case_when(
     .x == "Found" ~ factor("Found", levels = c("Found", "Not found")),
     .x == "Not found" ~ factor("Not found", levels = c("Found", "Not found")),
     TRUE ~ NA_character_
   ))) %>%
-  # ensure proper factor levels
   mutate(across(-c(decimalLatitude, decimalLongitude), ~ factor(.x, levels = c("Found", "Not found"))))
 
-# simple color scheme for found/not found
 occurrence_colours <- c(
   "Found" = "#e74c3c",
   "Not found" = "#3498db"
 )
 
-# factor levels for occurrence data
 occurrence_factor_levels_list <- list()
 species_columns_occ <- names(occurrence_d)[!names(occurrence_d) %in% c("decimalLatitude", "decimalLongitude")]
 for(species in species_columns_occ) {
@@ -436,7 +446,6 @@ for(species in species_columns_occ) {
 occurrence_histogram_code <- "
 Plot.plot({
   marks: [
-    // Bar chart showing presence/absence status
     Plot.barX(
       Object.keys(data[0])
         .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value' && key !== 'Number of species' && !key.includes('richness'))
@@ -483,7 +492,6 @@ Plot.plot({
                    (d.totalSurveyed > 0 ? ' (' + d.foundCount + ' found, ' + d.notFoundCount + ' not found)' : ' (no survey data)')
       }
     ),
-    // Icons positioned to the left of the y-axis
     Plot.image(
       Object.keys(data[0])
         .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value' && key !== 'Number of species' && !key.includes('richness'))
@@ -525,7 +533,6 @@ Plot.plot({
         title: d => d.species + ' icon'
       }
     ),
-    // Beetle emoji for species without icons
     Plot.text(
       Object.keys(data[0])
         .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value' && key !== 'Number of species' && !key.includes('richness'))
@@ -687,6 +694,31 @@ occurrence_tab <- spacetimeview(
     "Onthophagus binodis" = occurrence_colours,
     "Euoniticellus fulvus" = occurrence_colours
   ),
+  selectable_columns = c(
+   "Bubas bison",
+   "Copris elphenor",
+   "Copris hispanus",
+   "Digitonthophagus gazella",
+   "Euoniticellus africanus",
+   "Euoniticellus fulvus",
+   "Euoniticellus intermedius",
+   "Euoniticellus pallipes",
+   "Geotrupes spiniger",
+   "Liatongus militaris",
+   "Onitis alexis",
+   "Onitis aygulus",
+   "Onitis caffer",
+   "Onitis pecuarius",
+   "Onitis vanderkelleni",
+   "Onitis viridulus",
+   "Onthophagus binodis",
+   "Onthophagus nigriventris",
+   "Onthophagus obliquus",
+   "Onthophagus sagittarius",
+   "Onthophagus taurus",
+   "Sisyphus rubrus",
+   "Sisyphus spinipes"
+  ),
   country_codes = 'AU',
   header_title = "Dung Beetles of Australia",
   social_links = c('github'='https://github.com/jakemanger/spacetimeview_dungbeetles'),
@@ -702,7 +734,6 @@ library(ggplot2)
 
 time_series_data <- readRDS('temporal_model_predictions_points.rds')
 
-# diagnostic ggplots
 time_series_data |>
   filter(id == 13145) |>
   ggplot(aes(x = eventDate, y = `pred_abun_median_Onthophagus taurus`,
@@ -725,7 +756,6 @@ time_series_data |>
 
 
 time_series_data <- time_series_data %>%
-  # keep only occurrence status, time and coordinates
   select(
     contains("individualCount_")
     | contains("pred_abun_median_")
@@ -735,19 +765,16 @@ time_series_data <- time_series_data %>%
     | decimalLatitude
     | decimalLongitude
   ) %>%
-  # clean up column names and swap prediction data into main columns
   rename_with(~ paste0(str_remove(.x, "individualCount_"), "_observed"), contains("individualCount_")) %>%
   rename_with(~ str_remove(.x, "pred_abun_median_"), contains("pred_abun_median_")) %>%
   rename_with(~ paste0(str_remove(.x, "pred_abun_0.95_lower_"), "_pred_lower"), contains("pred_abun_0.95_lower_")) %>%
   rename_with(~ paste0(str_remove(.x, "pred_abun_0.95_upper_"), "_pred_upper"), contains("pred_abun_0.95_upper_")) %>%
-  # Fix timezone issues with eventDate
   mutate(eventDate = as.POSIXct(eventDate, tz = "UTC"))
 
 
 time_series_observable_code <- "
 Plot.plot({
   marks: [
-    // Get all species columns dynamically
     ...(() => {
       var speciesColumns = Object.keys(data[0])
         .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value' && key !== 'timestamp' && key !== 'originalTimestamp'
@@ -758,7 +785,6 @@ Plot.plot({
         return [Plot.text(['No data available'], {x: 0.5, y: 0.5, text: d => d})];
       }
 
-      // Use first species column as default (now contains predictions)
       var selectedSpecies = columnName
       var observedKey = selectedSpecies + '_observed';
       var lowerKey = selectedSpecies + '_pred_lower';
@@ -766,17 +792,14 @@ Plot.plot({
 
       var marks = [];
 
-      // Try both eventDate and timestamp fields
       var timeField = data[0].timestamp ? 'timestamp' : (data[0].eventDate ? 'eventDate' : null);
 
       if (!timeField) {
         return [Plot.text(['No time data available'], {x: 0.5, y: 0.5, text: d => d})];
       }
 
-      // Sort data by time to ensure proper line connections
       var sortedData = data.slice().sort((a, b) => new Date(a[timeField]) - new Date(b[timeField]));
 
-      // Confidence interval area
       var dataWithPred = sortedData.filter(d => d[timeField] && d[selectedSpecies] !== undefined);
       if (dataWithPred.length > 0) {
         marks.push(
@@ -793,7 +816,6 @@ Plot.plot({
           )
         );
 
-        // Predicted abundance line (main feature)
         marks.push(
           Plot.line(
             dataWithPred,
@@ -808,7 +830,6 @@ Plot.plot({
         );
       }
 
-      // Individual observation points (overlay)
       var dataWithObserved = sortedData.filter(d => d[timeField] && d[observedKey] !== undefined && d[observedKey] !== null && d[observedKey] > 0);
       if (dataWithObserved.length > 0) {
         marks.push(
@@ -850,7 +871,6 @@ Plot.plot({
   },
   y: {
     //type: 'log',
-    //label: 'Abundance (log scale)',
     grid: true,
     tickFormat: d => d < 1 ? d.toFixed(2) : Math.round(d).toString(),
   },
@@ -877,6 +897,31 @@ time_series_tab <- spacetimeview(
   ),
   observable = time_series_observable_code,
   factor_levels = occurrence_factor_levels_list,
+  selectable_columns = c(
+   "Bubas bison",
+   "Copris elphenor",
+   "Copris hispanus",
+   "Digitonthophagus gazella",
+   "Euoniticellus africanus",
+   "Euoniticellus fulvus",
+   "Euoniticellus intermedius",
+   "Euoniticellus pallipes",
+   "Geotrupes spiniger",
+   "Liatongus militaris",
+   "Onitis alexis",
+   "Onitis aygulus",
+   "Onitis caffer",
+   "Onitis pecuarius",
+   "Onitis vanderkelleni",
+   "Onitis viridulus",
+   "Onthophagus binodis",
+   "Onthophagus nigriventris",
+   "Onthophagus obliquus",
+   "Onthophagus sagittarius",
+   "Onthophagus taurus",
+   "Sisyphus rubrus",
+   "Sisyphus spinipes"
+  ),
   factor_icons = list(
    "Bubas bison" = "public/beetle_images/Bubas_bison.jpg",
    "Copris elphenor" = "public/beetle_images/Copris_elphenor.jpg",
