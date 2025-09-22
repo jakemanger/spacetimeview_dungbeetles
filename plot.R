@@ -413,7 +413,7 @@ predictions_tab <- spacetimeview(
   country_codes = 'AU',
   header_title = "Dung Beetles of Australia",
   social_links = c('github'='https://github.com/jakemanger/spacetimeview_dungbeetles'),
-  menu_text = 'Click on the map to see what beetles are predicted to be found there, or select a species to view its range 👇',
+  menu_text = 'Click on the coloured portions of the map to see what beetles are predicted to be found there\n\nOr select a species from the dropdown menu to view its range 👇',
   initial_latitude = -27.007754997248703, 
   initial_longitude = 134.35406022625756,
   initial_zoom = 4,
@@ -434,7 +434,7 @@ occurrence_d <- readRDS("presence_model_predictions_points_new.rds") %>%
 
 occurrence_colours <- c(
   "Found" = "#e74c3c",
-  "Not found" = "#3498db"
+  "Not found" = "#fbf8f3"
 )
 
 occurrence_factor_levels_list <- list()
@@ -618,10 +618,9 @@ Plot.plot({
     fontSize: 12,
     grid: false,
     domain: [0, 1],
-    ticks: [0.05, 0.5, 1],
+    ticks: [0.05, 1],
     tickFormat: function(d) {
-      if (d === 0.05) return 'Unknown';
-      if (d === 0.5) return 'Not Found';
+      if (d === 0.05) return 'Not Found';
       if (d === 1) return 'Found';
       return '';
     }
@@ -722,7 +721,7 @@ occurrence_tab <- spacetimeview(
   country_codes = 'AU',
   header_title = "Dung Beetles of Australia",
   social_links = c('github'='https://github.com/jakemanger/spacetimeview_dungbeetles'),
-  menu_text = 'Click on the map to see what beetles are found there, or select a species to view its observed range 👇',
+  menu_text = 'Click on the coloured portions of the map to see what beetles were found there\n\nOr select a species from the dropdown menu to view its observed range 👇',
   initial_latitude = -27.007754997248703, 
   initial_longitude = 134.35406022625756,
   initial_zoom = 4,
@@ -971,7 +970,7 @@ time_series_tab <- spacetimeview(
   country_codes = 'AU',
   header_title = "Dung Beetles of Australia",
   social_links = c('github'='https://github.com/jakemanger/spacetimeview_dungbeetles'),
-  menu_text = 'Click on a location to see predicted vs observed abundance over time for model validation\nor select a species from the dropdown menu to view different species 👇',
+  menu_text = 'Click on a location to see predicted vs observed abundance over time for model validation\n\nUse the dropdown menu to view a different species 👇',
   initial_latitude = -27.007754997248703,
   initial_longitude = 134.35406022625756,
   initial_zoom = 4,
