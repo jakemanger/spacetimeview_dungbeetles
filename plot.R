@@ -2,6 +2,8 @@ library(tidyverse)
 library(sf)
 library(dungfaunaR)
 
+print("TODO: make datasets MUCH SMALLER!!!!!!")
+
 devtools::load_all('../spacetimeview')
 
 prediction_colours <-  c(
@@ -728,12 +730,10 @@ occurrence_tab <- spacetimeview(
   about_text = about_text
 )
 
-library(tidyverse)
-library(ggplot2)
 
-time_series_data <- readRDS('temporal_model_predictions_points.rds')
+model_validation_data <- readRDS('temporal_model_predictions_points.rds')
 
-time_series_data |>
+model_validation_data |>
   filter(id == 13145) |>
   ggplot(aes(x = eventDate, y = `pred_abun_median_Onthophagus taurus`,
              ymin = `pred_abun_0.95_lower_Onthophagus taurus`, ymax = `pred_abun_0.95_upper_Onthophagus taurus`)) +
@@ -744,7 +744,7 @@ time_series_data |>
   scale_y_continuous(transform = "log") +
   theme_bw()
 
-time_series_data |>
+model_validation_data |>
   filter(id == 13145) |>
   ggplot(aes(x = eventDate, y = `pred_prob_median_Onthophagus taurus`,
              ymin = `pred_prob_0.95_lower_Onthophagus taurus`, ymax = `pred_prob_0.95_upper_Onthophagus taurus`)) +
@@ -754,7 +754,7 @@ time_series_data |>
              aes(x = eventDate, y = `occurrenceStatus_Onthophagus taurus`))
 
 
-time_series_data <- time_series_data %>%
+model_validation_data <- model_validation_data %>%
   select(
     contains("individualCount_")
     | contains("pred_abun_median_")
@@ -771,7 +771,7 @@ time_series_data <- time_series_data %>%
   mutate(eventDate = as.POSIXct(eventDate, tz = "UTC"))
 
 
-time_series_observable_code <- "
+model_validation_observable_code <- "
 Plot.plot({
   marks: [
     ...(() => {
@@ -885,8 +885,8 @@ Plot.plot({
 })
 "
 
-time_series_tab <- spacetimeview(
-  time_series_data,
+model_validation_tab <- spacetimeview(
+  model_validation_data,
   style = 'Summary',
   summary_radius = 5000,
   summary_height = 1,
@@ -894,7 +894,7 @@ time_series_tab <- spacetimeview(
   control_names = c(
    column_to_plot = 'Select a beetle species'
   ),
-  observable = time_series_observable_code,
+  observable = model_validation_observable_code,
   factor_levels = occurrence_factor_levels_list,
   selectable_columns = c(
    "Bubas bison",
@@ -979,10 +979,152 @@ time_series_tab <- spacetimeview(
   initial_time_mode = 'seasonal',
   sticky_range = TRUE
 )
-time_series_tab
 
-plt <- predictions_tab + occurrence_tab + time_series_tab 
 
-names(plt) <- c('Predictions', 'Occurrences', 'Model Validation')
+seasonal_predictions <- readRDS('temporal_model_predictions_points_2010_11.rds')
+
+seasonal_predictions <- seasonal_predictions %>%
+  select(
+    contains("pred_abun_median_")
+    | contains("pred_abun_0.95_lower_")
+    | contains("pred_abun_0.95_upper_")
+    | eventDate
+    | decimalLatitude
+    | decimalLongitude
+  ) %>%
+  select(-contains("pred_abun_median_NA"), -contains("pred_abun_0.95_lower_NA"), -contains("pred_abun_0.95_upper_NA")) %>%
+  rename_with(~ str_remove(.x, "pred_abun_median_"), contains("pred_abun_median_")) %>%
+  rename_with(~ paste0(str_remove(.x, "pred_abun_0.95_lower_"), "_pred_lower"), contains("pred_abun_0.95_lower_")) %>%
+  rename_with(~ paste0(str_remove(.x, "pred_abun_0.95_upper_"), "_pred_upper"), contains("pred_abun_0.95_upper_")) %>%
+  mutate(eventDate = as.POSIXct(eventDate, tz = "UTC"))
+
+seasonal_predictions_observable_code <- "
+Plot.plot({
+  marks: [
+    ...(() => {
+      var speciesColumns = Object.keys(data[0])
+        .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value' && key !== 'timestamp' && key !== 'originalTimestamp'
+          && key !== 'decimalLatitude' && key !== 'decimalLongitude' && key !== 'eventDate'
+          && !key.includes('_pred') && !key.includes('_lower') && !key.includes('_upper'));
+
+      if (!data || data.length === 0 || speciesColumns.length === 0) {
+        return [Plot.text(['No data available'], {x: 0.5, y: 0.5, text: d => d})];
+      }
+
+      var selectedSpecies = columnName;
+      var lowerKey = selectedSpecies + '_pred_lower';
+      var upperKey = selectedSpecies + '_pred_upper';
+
+      var marks = [];
+
+      var timeField = data[0].timestamp ? 'timestamp' : (data[0].eventDate ? 'eventDate' : null);
+
+      if (!timeField) {
+        return [Plot.text(['No time data available'], {x: 0.5, y: 0.5, text: d => d})];
+      }
+
+      var sortedData = data.slice().sort((a, b) => new Date(a[timeField]) - new Date(b[timeField]));
+
+      var dataWithPred = sortedData.filter(d => d[timeField] && d[selectedSpecies] !== undefined);
+      if (dataWithPred.length > 0) {
+        marks.push(
+          Plot.areaY(
+            dataWithPred,
+            {
+              x: d => new Date(d[timeField]),
+              y1: d => Math.max(0.001, d[lowerKey] || 0.001),
+              y2: d => Math.max(0.001, d[upperKey] || 0.001),
+              fill: '#3498db',
+              fillOpacity: 0.2,
+              z: 'Confidence interval'
+            }
+          )
+        );
+
+        marks.push(
+          Plot.line(
+            dataWithPred,
+            {
+              x: d => new Date(d[timeField]),
+              y: d => Math.max(0.001, d[selectedSpecies] || 0.001),
+              stroke: '#3498db',
+              strokeWidth: 2,
+              z: 'Predicted abundance'
+            }
+          )
+        );
+      }
+
+      if (marks.length === 0) {
+        return [Plot.text(['No seasonal prediction data available for this location'], {x: 0.5, y: 0.5, text: d => d})];
+      }
+
+      return marks;
+    })()
+  ],
+  color: {
+    legend: true,
+    domain: ['Predicted abundance', 'Confidence interval'],
+    range: ['#3498db', '#3498db']
+  },
+  x: {
+    type: 'time',
+    label: 'Date',
+    grid: true
+  },
+  y: {
+    label: 'Abundance',
+    grid: true,
+    tickFormat: d => d < 1 ? d.toFixed(2) : Math.round(d).toString()
+  },
+  style: {
+    fontSize: '12px'
+  },
+  title: 'Predicted abundance over the year at ' + (data[0] ? (data[0].lat || data[0].decimalLatitude || 0).toFixed(2) : '0') + ', ' + (data[0] ? (data[0].lng || data[0].decimalLongitude || 0).toFixed(2) : '0'),
+  width: 450,
+  height: 300,
+  marginBottom: 40,
+  marginLeft: 60,
+  marginRight: 20
+})
+"
+
+seasonal_predictions_tab <- spacetimeview(
+  seasonal_predictions,
+  style = 'Summary',
+  summary_radius = 45000,
+  summary_height = 1,
+  visible_controls = c('column_to_plot'),
+  control_names = c(
+   column_to_plot = 'Select a beetle species'
+  ),
+  observable = seasonal_predictions_observable_code,
+  selectable_columns = c(
+   "Euoniticellus fulvus",
+   "Euoniticellus africanus",
+   "Copris hispanus"
+  ),
+  factor_icons = list(
+   "Euoniticellus fulvus" = "public/beetle_images/Euoniticellus_fulvus.jpg",
+   "Euoniticellus africanus" = "public/beetle_images/Euoniticellus_africanus.jpg",
+   "Copris hispanus" = "public/beetle_images/Copris_hispanus.jpg"
+  ),
+  country_codes = 'AU',
+  header_title = "Dung Beetles of Australia",
+  social_links = c('github'='https://github.com/jakemanger/spacetimeview_dungbeetles'),
+  menu_text = 'Click on a location to see predicted abundance of each beetle species throughout the year\n\nUse the dropdown menu to view a different species 👇',
+  initial_latitude = -27.007754997248703,
+  initial_longitude = 134.35406022625756,
+  initial_zoom = 4,
+  about_text = about_text,
+  animation_speed = 6,
+  initial_time_mode = 'seasonal',
+  sticky_range = TRUE
+)
+
+
+plt <- predictions_tab + seasonal_predictions_tab + occurrence_tab + model_validation_tab
+
+names(plt) <- c('Predictions', 'Seasonal Predictions', 'Occurrences', 'Model Validation')
 
 plot(plt)
