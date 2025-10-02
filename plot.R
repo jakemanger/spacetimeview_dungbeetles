@@ -2,9 +2,10 @@ library(tidyverse)
 library(sf)
 library(dungfaunaR)
 
-print("TODO: make datasets MUCH SMALLER!!!!!!")
-
 devtools::load_all('../spacetimeview')
+
+# configuration
+json_digits <- 2
 
 prediction_colours <-  c(
   "Predicted_present_1" = "#67001f",
@@ -267,7 +268,7 @@ about_text = "
 "
 
 predictions_tab <- spacetimeview(
-  data = d, 
+  data = d,
   style = 'Summary',
   summary_radius = 7000,
   summary_height = 1,
@@ -275,6 +276,7 @@ predictions_tab <- spacetimeview(
   control_names = c(
     column_to_plot = 'Select a beetle species'
   ),
+  json_digits = json_digits,
   observable = histogram_code,
   factor_levels = factor_levels_list,
   legend_order = list(
@@ -423,7 +425,7 @@ predictions_tab <- spacetimeview(
   about_text = about_text
 )
 
-occurrence_d <- readRDS("presence_model_predictions_points_new.rds") %>%
+occurrence_d_raw <- readRDS("presence_model_predictions_points_new.rds") %>%
   select(decimalLatitude, decimalLongitude, starts_with("occurrenceStatus_")) %>%
   select(-contains("richness"), -contains("pred_richness")) %>%
   rename_with(~ str_remove(.x, "occurrenceStatus_"), starts_with("occurrenceStatus_")) %>%
@@ -433,6 +435,15 @@ occurrence_d <- readRDS("presence_model_predictions_points_new.rds") %>%
     TRUE ~ NA_character_
   ))) %>%
   mutate(across(-c(decimalLatitude, decimalLongitude), ~ factor(.x, levels = c("Found", "Not found"))))
+
+# filter out rows where all species columns are NA (98% of rows)
+occurrence_d <- occurrence_d_raw %>%
+  filter(rowSums(!is.na(select(., -decimalLatitude, -decimalLongitude))) > 0)
+
+cat(sprintf("Occurrence data: filtered from %s to %s rows (removed %s%% empty rows)\n",
+            format(nrow(occurrence_d_raw), big.mark=","),
+            format(nrow(occurrence_d), big.mark=","),
+            round(100 * (1 - nrow(occurrence_d) / nrow(occurrence_d_raw)), 1)))
 
 occurrence_colours <- c(
   "Found" = "#e74c3c",
@@ -638,8 +649,9 @@ Plot.plot({
 })
 "
 
+
 occurrence_tab <- spacetimeview(
-  data = occurrence_d, 
+  data = occurrence_d,
   style = 'Summary',
   summary_radius = 7000,
   summary_height = 1,
@@ -647,6 +659,7 @@ occurrence_tab <- spacetimeview(
   control_names = c(
     column_to_plot = 'Select a beetle species'
   ),
+  json_digits = json_digits,
   observable = occurrence_histogram_code,
   factor_levels = occurrence_factor_levels_list,
   factor_icons = list(
@@ -894,6 +907,7 @@ model_validation_tab <- spacetimeview(
   control_names = c(
    column_to_plot = 'Select a beetle species'
   ),
+  json_digits = json_digits,
   observable = model_validation_observable_code,
   factor_levels = occurrence_factor_levels_list,
   selectable_columns = c(
@@ -981,9 +995,9 @@ model_validation_tab <- spacetimeview(
 )
 
 
-seasonal_predictions <- readRDS('temporal_model_predictions_points_2010_11.rds')
+seasonal_predictions_raw <- readRDS('temporal_model_predictions_points_2010_11.rds')
 
-seasonal_predictions <- seasonal_predictions %>%
+seasonal_predictions <- seasonal_predictions_raw %>%
   select(
     contains("pred_abun_median_")
     | contains("pred_abun_0.95_lower_")
@@ -997,6 +1011,15 @@ seasonal_predictions <- seasonal_predictions %>%
   rename_with(~ paste0(str_remove(.x, "pred_abun_0.95_lower_"), "_pred_lower"), contains("pred_abun_0.95_lower_")) %>%
   rename_with(~ paste0(str_remove(.x, "pred_abun_0.95_upper_"), "_pred_upper"), contains("pred_abun_0.95_upper_")) %>%
   mutate(eventDate = as.POSIXct(eventDate, tz = "UTC"))
+
+# filter out rows where all prediction columns are NA (78% of rows)
+seasonal_predictions <- seasonal_predictions %>%
+  filter(rowSums(!is.na(select(., -eventDate, -decimalLatitude, -decimalLongitude))) > 0)
+
+cat(sprintf("Seasonal predictions: filtered from %s to %s rows (removed %s%% empty rows)\n",
+            format(nrow(seasonal_predictions_raw), big.mark=","),
+            format(nrow(seasonal_predictions), big.mark=","),
+            round(100 * (1 - nrow(seasonal_predictions) / nrow(seasonal_predictions_raw)), 1)))
 
 seasonal_predictions_observable_code <- "
 Plot.plot({
@@ -1098,6 +1121,7 @@ seasonal_predictions_tab <- spacetimeview(
   control_names = c(
    column_to_plot = 'Select a beetle species'
   ),
+  json_digits = json_digits,
   observable = seasonal_predictions_observable_code,
   selectable_columns = c(
    "Euoniticellus fulvus",
