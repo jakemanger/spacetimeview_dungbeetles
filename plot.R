@@ -744,255 +744,255 @@ occurrence_tab <- spacetimeview(
 )
 
 
-model_validation_data <- readRDS('temporal_model_predictions_points.rds')
-
-model_validation_data |>
-  filter(id == 13145) |>
-  ggplot(aes(x = eventDate, y = `pred_abun_median_Onthophagus taurus`,
-             ymin = `pred_abun_0.95_lower_Onthophagus taurus`, ymax = `pred_abun_0.95_upper_Onthophagus taurus`)) +
-  geom_line(colour = "blue", lwd = 3) +
-  geom_ribbon(fill = "blue", alpha = 0.5) +
-  geom_point(inherit.aes = FALSE,
-             aes(x = eventDate, y = `individualCount_Onthophagus taurus`)) + 
-  scale_y_continuous(transform = "log") +
-  theme_bw()
-
-model_validation_data |>
-  filter(id == 13145) |>
-  ggplot(aes(x = eventDate, y = `pred_prob_median_Onthophagus taurus`,
-             ymin = `pred_prob_0.95_lower_Onthophagus taurus`, ymax = `pred_prob_0.95_upper_Onthophagus taurus`)) +
-  geom_line(colour = "blue", lwd = 3) +
-  geom_ribbon(fill = "blue", alpha = 0.5) +
-  geom_point(inherit.aes = FALSE,
-             aes(x = eventDate, y = `occurrenceStatus_Onthophagus taurus`))
-
-
-model_validation_data <- model_validation_data %>%
-  select(
-    contains("individualCount_")
-    | contains("pred_abun_median_")
-    | contains("pred_abun_0.95_lower_")
-    | contains("pred_abun_0.95_upper_")
-    | eventDate
-    | decimalLatitude
-    | decimalLongitude
-  ) %>%
-  rename_with(~ paste0(str_remove(.x, "individualCount_"), "_observed"), contains("individualCount_")) %>%
-  rename_with(~ str_remove(.x, "pred_abun_median_"), contains("pred_abun_median_")) %>%
-  rename_with(~ paste0(str_remove(.x, "pred_abun_0.95_lower_"), "_pred_lower"), contains("pred_abun_0.95_lower_")) %>%
-  rename_with(~ paste0(str_remove(.x, "pred_abun_0.95_upper_"), "_pred_upper"), contains("pred_abun_0.95_upper_")) %>%
-  mutate(eventDate = as.POSIXct(eventDate, tz = "UTC"))
-
-
-model_validation_observable_code <- "
-Plot.plot({
-  marks: [
-    ...(() => {
-      var speciesColumns = Object.keys(data[0])
-        .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value' && key !== 'timestamp' && key !== 'originalTimestamp'
-          && key !== 'decimalLatitude' && key !== 'decimalLongitude' && key !== 'eventDate'
-          && !key.includes('_pred') && !key.includes('_lower') && !key.includes('_upper') && !key.includes('_observed'));
-
-      if (!data || data.length === 0 || speciesColumns.length === 0) {
-        return [Plot.text(['No data available'], {x: 0.5, y: 0.5, text: d => d})];
-      }
-
-      var selectedSpecies = columnName
-      var observedKey = selectedSpecies + '_observed';
-      var lowerKey = selectedSpecies + '_pred_lower';
-      var upperKey = selectedSpecies + '_pred_upper';
-
-      var marks = [];
-
-      var timeField = data[0].timestamp ? 'timestamp' : (data[0].eventDate ? 'eventDate' : null);
-
-      if (!timeField) {
-        return [Plot.text(['No time data available'], {x: 0.5, y: 0.5, text: d => d})];
-      }
-
-      var sortedData = data.slice().sort((a, b) => new Date(a[timeField]) - new Date(b[timeField]));
-
-      var dataWithPred = sortedData.filter(d => d[timeField] && d[selectedSpecies] !== undefined);
-      if (dataWithPred.length > 0) {
-        marks.push(
-          Plot.areaY(
-            dataWithPred,
-            {
-              x: d => new Date(d[timeField]),
-              y1: d => Math.max(0.001, d[lowerKey] || 0.001),
-              y2: d => Math.max(0.001, d[upperKey] || 0.001),
-              fill: '#3498db',
-              fillOpacity: 0.2,
-              z: 'Confidence interval'
-            }
-          )
-        );
-
-        marks.push(
-          Plot.line(
-            dataWithPred,
-            {
-              x: d => new Date(d[timeField]),
-              y: d => Math.max(0.001, d[selectedSpecies] || 0.001),
-              stroke: '#3498db',
-              strokeWidth: 2,
-              z: 'Predicted abundance'
-            }
-          )
-        );
-      }
-
-      var dataWithObserved = sortedData.filter(d => d[timeField] && d[observedKey] !== undefined && d[observedKey] !== null && d[observedKey] > 0);
-      if (dataWithObserved.length > 0) {
-        marks.push(
-          Plot.dot(
-            dataWithObserved,
-            {
-              x: d => new Date(d[timeField]),
-              y: d => Math.max(0.001, d[observedKey]),
-              fill: '#e74c3c',
-              r: 4,
-              z: 'Observed counts',
-              title: d => {
-                var date = new Date(d[timeField]).toLocaleDateString();
-                var observed = d[observedKey] || 0;
-                var predicted = d[selectedSpecies] || 0;
-                return date + '\\nObserved: ' + observed + '\\nPredicted: ' + predicted.toFixed(2);
-              }
-            }
-          )
-        );
-      }
-
-      if (marks.length === 0) {
-        return [Plot.text(['No time series data available for this location'], {x: 0.5, y: 0.5, text: d => d})];
-      }
-
-      return marks;
-    })()
-  ],
-  color: {
-    legend: true,
-    domain: ['Predicted abundance', 'Prediction interval', 'Observed counts'],
-    range: ['#3498db', '#3498db', '#e74c3c']
-  },
-  x: {
-    type: 'time',
-    label: 'Date',
-    grid: true
-  },
-  y: {
-    //type: 'log',
-    grid: true,
-    tickFormat: d => d < 1 ? d.toFixed(2) : Math.round(d).toString(),
-  },
-  style: {
-    fontSize: '12px'
-  },
-  title: 'Predicted and observed abundance over time at ' + (data[0] ? (data[0].lat || data[0].decimalLatitude || 0).toFixed(2) : '0') + ', ' + (data[0] ? (data[0].lng || data[0].decimalLongitude || 0).toFixed(2) : '0'),
-  width: 450,
-  height: 300,
-  marginBottom: 40,
-  marginLeft: 60,
-  marginRight: 20
-})
-"
-
-model_validation_tab <- spacetimeview(
-  model_validation_data,
-  style = 'Summary',
-  summary_radius = 5000,
-  summary_height = 1,
-  visible_controls = c('column_to_plot'),
-  control_names = c(
-   column_to_plot = 'Select a beetle species'
-  ),
-  json_digits = json_digits,
-  observable = model_validation_observable_code,
-  factor_levels = occurrence_factor_levels_list,
-  selectable_columns = c(
-   "Bubas bison",
-   "Copris elphenor",
-   "Copris hispanus",
-   "Digitonthophagus gazella",
-   "Euoniticellus africanus",
-   "Euoniticellus fulvus",
-   "Euoniticellus intermedius",
-   "Euoniticellus pallipes",
-   "Geotrupes spiniger",
-   "Liatongus militaris",
-   "Onitis alexis",
-   "Onitis aygulus",
-   "Onitis caffer",
-   "Onitis pecuarius",
-   "Onitis vanderkelleni",
-   "Onitis viridulus",
-   "Onthophagus binodis",
-   "Onthophagus nigriventris",
-   "Onthophagus obliquus",
-   "Onthophagus sagittarius",
-   "Onthophagus taurus",
-   "Sisyphus rubrus",
-   "Sisyphus spinipes"
-  ),
-  factor_icons = list(
-   "Bubas bison" = "public/beetle_images/Bubas_bison.jpg",
-   "Copris elphenor" = "public/beetle_images/Copris_elphenor.jpg",
-   "Copris hispanus" = "public/beetle_images/Copris_hispanus.jpg",
-   "Digitonthophagus gazella" = "public/beetle_images/Digitonthophagus_gazella.jpg",
-   "Euoniticellus africanus" = "public/beetle_images/Euoniticellus_africanus.jpg",
-   "Euoniticellus fulvus" = "public/beetle_images/Euoniticellus_fulvus.jpg",
-   "Euoniticellus intermedius" = "public/beetle_images/Euoniticellus_intermedius.jpg",
-   "Euoniticellus pallipes" = "public/beetle_images/Euoniticellus_pallipes.jpg",
-   "Geotrupes spiniger" = "public/beetle_images/Geotrupes_spiniger.jpg",
-   "Liatongus militaris" = "public/beetle_images/Liatongus_militaris.jpg",
-   "Onitis alexis" = "public/beetle_images/Onitis_alexis.jpg",
-   "Onitis aygulus" = "public/beetle_images/Onitis_aygulus.jpg",
-   "Onitis caffer" = "public/beetle_images/Onitis_caffer.jpg",
-   "Onitis pecuarius" = "public/beetle_images/Onitis_pecuarius.jpg",
-   "Onitis vanderkelleni" = "public/beetle_images/Onitis_vanderkelleni.jpg",
-   "Onitis viridulus" = "public/beetle_images/Onitis_viridulus.jpg",
-   "Onthophagus binodis" = "public/beetle_images/Onthophagus_binodis.jpg",
-   "Onthophagus nigriventris" = "public/beetle_images/Onthophagus_nigriventris.jpg",
-   "Onthophagus obliquus" = "public/beetle_images/Onthophagus_obliquus.jpg",
-   "Onthophagus sagittarius" = "public/beetle_images/Onthophagus_sagittarius.jpg",
-   "Onthophagus taurus" = "public/beetle_images/Onthophagus_taurus.jpg",
-   "Sisyphus rubrus" = "public/beetle_images/Sisyphus_rubrus.jpg",
-   "Sisyphus spinipes" = "public/beetle_images/Sisyphus_spinipes.jpg"
-  ),
-  factor_colors = list(
-   "Bubas bison" = occurrence_colours,
-   "Digitonthophagus gazella" = occurrence_colours,
-   "Euoniticellus africanus" = occurrence_colours,
-   "Euoniticellus intermedius" = occurrence_colours,
-   "Euoniticellus pallipes" = occurrence_colours,
-   "Geotrupes spiniger" = occurrence_colours,
-   "Liatongus militaris" = occurrence_colours,
-   "Onitis alexis" = occurrence_colours,
-   "Onitis aygulus" = occurrence_colours,
-   "Onitis caffer" = occurrence_colours,
-   "Onitis pecuarius" = occurrence_colours,
-   "Onitis viridulus" = occurrence_colours,
-   "Onthophagus nigriventris" = occurrence_colours,
-   "Onthophagus sagittarius" = occurrence_colours,
-   "Onthophagus taurus" = occurrence_colours,
-   "Sisyphus rubrus" = occurrence_colours,
-   "Sisyphus spinipes" = occurrence_colours,
-   "Onthophagus binodis" = occurrence_colours,
-   "Euoniticellus fulvus" = occurrence_colours
-  ),
-  country_codes = 'AU',
-  header_title = "Dung Beetles of Australia",
-  social_links = c('github'='https://github.com/jakemanger/spacetimeview_dungbeetles'),
-  menu_text = 'Click on a location to see predicted vs observed abundance over time for model validation\n\nUse the dropdown menu to view a different species 👇',
-  initial_latitude = -27.007754997248703,
-  initial_longitude = 134.35406022625756,
-  initial_zoom = 4,
-  about_text = about_text,
-  animation_speed = 6,
-  initial_time_mode = 'seasonal',
-  sticky_range = TRUE
-)
+# model_validation_data <- readRDS('temporal_model_predictions_points.rds')
+# 
+# model_validation_data |>
+#   filter(id == 13145) |>
+#   ggplot(aes(x = eventDate, y = `pred_abun_median_Onthophagus taurus`,
+#              ymin = `pred_abun_0.95_lower_Onthophagus taurus`, ymax = `pred_abun_0.95_upper_Onthophagus taurus`)) +
+#   geom_line(colour = "blue", lwd = 3) +
+#   geom_ribbon(fill = "blue", alpha = 0.5) +
+#   geom_point(inherit.aes = FALSE,
+#              aes(x = eventDate, y = `individualCount_Onthophagus taurus`)) + 
+#   scale_y_continuous(transform = "log") +
+#   theme_bw()
+# 
+# model_validation_data |>
+#   filter(id == 13145) |>
+#   ggplot(aes(x = eventDate, y = `pred_prob_median_Onthophagus taurus`,
+#              ymin = `pred_prob_0.95_lower_Onthophagus taurus`, ymax = `pred_prob_0.95_upper_Onthophagus taurus`)) +
+#   geom_line(colour = "blue", lwd = 3) +
+#   geom_ribbon(fill = "blue", alpha = 0.5) +
+#   geom_point(inherit.aes = FALSE,
+#              aes(x = eventDate, y = `occurrenceStatus_Onthophagus taurus`))
+# 
+# 
+# model_validation_data <- model_validation_data %>%
+#   select(
+#     contains("individualCount_")
+#     | contains("pred_abun_median_")
+#     | contains("pred_abun_0.95_lower_")
+#     | contains("pred_abun_0.95_upper_")
+#     | eventDate
+#     | decimalLatitude
+#     | decimalLongitude
+#   ) %>%
+#   rename_with(~ paste0(str_remove(.x, "individualCount_"), "_observed"), contains("individualCount_")) %>%
+#   rename_with(~ str_remove(.x, "pred_abun_median_"), contains("pred_abun_median_")) %>%
+#   rename_with(~ paste0(str_remove(.x, "pred_abun_0.95_lower_"), "_pred_lower"), contains("pred_abun_0.95_lower_")) %>%
+#   rename_with(~ paste0(str_remove(.x, "pred_abun_0.95_upper_"), "_pred_upper"), contains("pred_abun_0.95_upper_")) %>%
+#   mutate(eventDate = as.POSIXct(eventDate, tz = "UTC"))
+# 
+# 
+# model_validation_observable_code <- "
+# Plot.plot({
+#   marks: [
+#     ...(() => {
+#       var speciesColumns = Object.keys(data[0])
+#         .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value' && key !== 'timestamp' && key !== 'originalTimestamp'
+#           && key !== 'decimalLatitude' && key !== 'decimalLongitude' && key !== 'eventDate'
+#           && !key.includes('_pred') && !key.includes('_lower') && !key.includes('_upper') && !key.includes('_observed'));
+# 
+#       if (!data || data.length === 0 || speciesColumns.length === 0) {
+#         return [Plot.text(['No data available'], {x: 0.5, y: 0.5, text: d => d})];
+#       }
+# 
+#       var selectedSpecies = columnName
+#       var observedKey = selectedSpecies + '_observed';
+#       var lowerKey = selectedSpecies + '_pred_lower';
+#       var upperKey = selectedSpecies + '_pred_upper';
+# 
+#       var marks = [];
+# 
+#       var timeField = data[0].timestamp ? 'timestamp' : (data[0].eventDate ? 'eventDate' : null);
+# 
+#       if (!timeField) {
+#         return [Plot.text(['No time data available'], {x: 0.5, y: 0.5, text: d => d})];
+#       }
+# 
+#       var sortedData = data.slice().sort((a, b) => new Date(a[timeField]) - new Date(b[timeField]));
+# 
+#       var dataWithPred = sortedData.filter(d => d[timeField] && d[selectedSpecies] !== undefined);
+#       if (dataWithPred.length > 0) {
+#         marks.push(
+#           Plot.areaY(
+#             dataWithPred,
+#             {
+#               x: d => new Date(d[timeField]),
+#               y1: d => Math.max(0.001, d[lowerKey] || 0.001),
+#               y2: d => Math.max(0.001, d[upperKey] || 0.001),
+#               fill: '#3498db',
+#               fillOpacity: 0.2,
+#               z: 'Confidence interval'
+#             }
+#           )
+#         );
+# 
+#         marks.push(
+#           Plot.line(
+#             dataWithPred,
+#             {
+#               x: d => new Date(d[timeField]),
+#               y: d => Math.max(0.001, d[selectedSpecies] || 0.001),
+#               stroke: '#3498db',
+#               strokeWidth: 2,
+#               z: 'Predicted abundance'
+#             }
+#           )
+#         );
+#       }
+# 
+#       var dataWithObserved = sortedData.filter(d => d[timeField] && d[observedKey] !== undefined && d[observedKey] !== null && d[observedKey] > 0);
+#       if (dataWithObserved.length > 0) {
+#         marks.push(
+#           Plot.dot(
+#             dataWithObserved,
+#             {
+#               x: d => new Date(d[timeField]),
+#               y: d => Math.max(0.001, d[observedKey]),
+#               fill: '#e74c3c',
+#               r: 4,
+#               z: 'Observed counts',
+#               title: d => {
+#                 var date = new Date(d[timeField]).toLocaleDateString();
+#                 var observed = d[observedKey] || 0;
+#                 var predicted = d[selectedSpecies] || 0;
+#                 return date + '\\nObserved: ' + observed + '\\nPredicted: ' + predicted.toFixed(2);
+#               }
+#             }
+#           )
+#         );
+#       }
+# 
+#       if (marks.length === 0) {
+#         return [Plot.text(['No time series data available for this location'], {x: 0.5, y: 0.5, text: d => d})];
+#       }
+# 
+#       return marks;
+#     })()
+#   ],
+#   color: {
+#     legend: true,
+#     domain: ['Predicted abundance', 'Prediction interval', 'Observed counts'],
+#     range: ['#3498db', '#3498db', '#e74c3c']
+#   },
+#   x: {
+#     type: 'time',
+#     label: 'Date',
+#     grid: true
+#   },
+#   y: {
+#     //type: 'log',
+#     grid: true,
+#     tickFormat: d => d < 1 ? d.toFixed(2) : Math.round(d).toString(),
+#   },
+#   style: {
+#     fontSize: '12px'
+#   },
+#   title: 'Predicted and observed abundance over time at ' + (data[0] ? (data[0].lat || data[0].decimalLatitude || 0).toFixed(2) : '0') + ', ' + (data[0] ? (data[0].lng || data[0].decimalLongitude || 0).toFixed(2) : '0'),
+#   width: 450,
+#   height: 300,
+#   marginBottom: 40,
+#   marginLeft: 60,
+#   marginRight: 20
+# })
+# "
+# 
+# model_validation_tab <- spacetimeview(
+#   model_validation_data,
+#   style = 'Summary',
+#   summary_radius = 5000,
+#   summary_height = 1,
+#   visible_controls = c('column_to_plot'),
+#   control_names = c(
+#    column_to_plot = 'Select a beetle species'
+#   ),
+#   json_digits = json_digits,
+#   observable = model_validation_observable_code,
+#   factor_levels = occurrence_factor_levels_list,
+#   selectable_columns = c(
+#    "Bubas bison",
+#    "Copris elphenor",
+#    "Copris hispanus",
+#    "Digitonthophagus gazella",
+#    "Euoniticellus africanus",
+#    "Euoniticellus fulvus",
+#    "Euoniticellus intermedius",
+#    "Euoniticellus pallipes",
+#    "Geotrupes spiniger",
+#    "Liatongus militaris",
+#    "Onitis alexis",
+#    "Onitis aygulus",
+#    "Onitis caffer",
+#    "Onitis pecuarius",
+#    "Onitis vanderkelleni",
+#    "Onitis viridulus",
+#    "Onthophagus binodis",
+#    "Onthophagus nigriventris",
+#    "Onthophagus obliquus",
+#    "Onthophagus sagittarius",
+#    "Onthophagus taurus",
+#    "Sisyphus rubrus",
+#    "Sisyphus spinipes"
+#   ),
+#   factor_icons = list(
+#    "Bubas bison" = "public/beetle_images/Bubas_bison.jpg",
+#    "Copris elphenor" = "public/beetle_images/Copris_elphenor.jpg",
+#    "Copris hispanus" = "public/beetle_images/Copris_hispanus.jpg",
+#    "Digitonthophagus gazella" = "public/beetle_images/Digitonthophagus_gazella.jpg",
+#    "Euoniticellus africanus" = "public/beetle_images/Euoniticellus_africanus.jpg",
+#    "Euoniticellus fulvus" = "public/beetle_images/Euoniticellus_fulvus.jpg",
+#    "Euoniticellus intermedius" = "public/beetle_images/Euoniticellus_intermedius.jpg",
+#    "Euoniticellus pallipes" = "public/beetle_images/Euoniticellus_pallipes.jpg",
+#    "Geotrupes spiniger" = "public/beetle_images/Geotrupes_spiniger.jpg",
+#    "Liatongus militaris" = "public/beetle_images/Liatongus_militaris.jpg",
+#    "Onitis alexis" = "public/beetle_images/Onitis_alexis.jpg",
+#    "Onitis aygulus" = "public/beetle_images/Onitis_aygulus.jpg",
+#    "Onitis caffer" = "public/beetle_images/Onitis_caffer.jpg",
+#    "Onitis pecuarius" = "public/beetle_images/Onitis_pecuarius.jpg",
+#    "Onitis vanderkelleni" = "public/beetle_images/Onitis_vanderkelleni.jpg",
+#    "Onitis viridulus" = "public/beetle_images/Onitis_viridulus.jpg",
+#    "Onthophagus binodis" = "public/beetle_images/Onthophagus_binodis.jpg",
+#    "Onthophagus nigriventris" = "public/beetle_images/Onthophagus_nigriventris.jpg",
+#    "Onthophagus obliquus" = "public/beetle_images/Onthophagus_obliquus.jpg",
+#    "Onthophagus sagittarius" = "public/beetle_images/Onthophagus_sagittarius.jpg",
+#    "Onthophagus taurus" = "public/beetle_images/Onthophagus_taurus.jpg",
+#    "Sisyphus rubrus" = "public/beetle_images/Sisyphus_rubrus.jpg",
+#    "Sisyphus spinipes" = "public/beetle_images/Sisyphus_spinipes.jpg"
+#   ),
+#   factor_colors = list(
+#    "Bubas bison" = occurrence_colours,
+#    "Digitonthophagus gazella" = occurrence_colours,
+#    "Euoniticellus africanus" = occurrence_colours,
+#    "Euoniticellus intermedius" = occurrence_colours,
+#    "Euoniticellus pallipes" = occurrence_colours,
+#    "Geotrupes spiniger" = occurrence_colours,
+#    "Liatongus militaris" = occurrence_colours,
+#    "Onitis alexis" = occurrence_colours,
+#    "Onitis aygulus" = occurrence_colours,
+#    "Onitis caffer" = occurrence_colours,
+#    "Onitis pecuarius" = occurrence_colours,
+#    "Onitis viridulus" = occurrence_colours,
+#    "Onthophagus nigriventris" = occurrence_colours,
+#    "Onthophagus sagittarius" = occurrence_colours,
+#    "Onthophagus taurus" = occurrence_colours,
+#    "Sisyphus rubrus" = occurrence_colours,
+#    "Sisyphus spinipes" = occurrence_colours,
+#    "Onthophagus binodis" = occurrence_colours,
+#    "Euoniticellus fulvus" = occurrence_colours
+#   ),
+#   country_codes = 'AU',
+#   header_title = "Dung Beetles of Australia",
+#   social_links = c('github'='https://github.com/jakemanger/spacetimeview_dungbeetles'),
+#   menu_text = 'Click on a location to see predicted vs observed abundance over time for model validation\n\nUse the dropdown menu to view a different species 👇',
+#   initial_latitude = -27.007754997248703,
+#   initial_longitude = 134.35406022625756,
+#   initial_zoom = 4,
+#   about_text = about_text,
+#   animation_speed = 6,
+#   initial_time_mode = 'seasonal',
+#   sticky_range = TRUE
+# )
 
 
 seasonal_predictions_raw <- readRDS('temporal_model_predictions_points_2010_11.rds')
@@ -1147,8 +1147,9 @@ seasonal_predictions_tab <- spacetimeview(
 )
 
 
-plt <- predictions_tab + seasonal_predictions_tab + occurrence_tab + model_validation_tab
+# hide model validation tab -> it is too big anyway
+plt <- predictions_tab + seasonal_predictions_tab + occurrence_tab# + model_validation_tab
 
-names(plt) <- c('Predictions', 'Seasonal Predictions', 'Occurrences', 'Model Validation')
+names(plt) <- c('Predictions', 'Seasonal Predictions', 'Occurrences') #, 'Model Validation')
 
 plot(plt)
