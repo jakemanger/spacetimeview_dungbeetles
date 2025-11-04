@@ -1010,7 +1010,26 @@ seasonal_predictions <- seasonal_predictions_raw %>%
   rename_with(~ str_remove(.x, "pred_abun_median_"), contains("pred_abun_median_")) %>%
   rename_with(~ paste0(str_remove(.x, "pred_abun_0.95_lower_"), "_pred_lower"), contains("pred_abun_0.95_lower_")) %>%
   rename_with(~ paste0(str_remove(.x, "pred_abun_0.95_upper_"), "_pred_upper"), contains("pred_abun_0.95_upper_")) %>%
-  mutate(eventDate = as.POSIXct(eventDate, tz = "UTC"))
+  mutate(eventDate = as.POSIXct(eventDate, tz = "UTC")) %>%
+  # Aggregate to weekly data for better performance
+  mutate(
+    year_week = floor_date(eventDate, "week")
+  ) %>%
+  group_by(decimalLatitude, decimalLongitude, year_week) %>%
+  summarise(
+    across(where(is.numeric), ~ mean(.x, na.rm = TRUE)),
+    .groups = "drop"
+  ) %>%
+  rename(eventDate = year_week)
+
+# Create "All Beetles" column by summing all species abundances
+species_cols_seasonal <- names(seasonal_predictions)[!names(seasonal_predictions) %in% c("eventDate", "decimalLatitude", "decimalLongitude") & !str_detect(names(seasonal_predictions), "_pred_lower|_pred_upper")]
+seasonal_predictions <- seasonal_predictions %>%
+  mutate(
+    `All Beetles` = rowSums(select(., all_of(species_cols_seasonal)), na.rm = TRUE),
+    `All Beetles_pred_lower` = rowSums(select(., ends_with("_pred_lower")), na.rm = TRUE),
+    `All Beetles_pred_upper` = rowSums(select(., ends_with("_pred_upper")), na.rm = TRUE)
+  )
 
 # filter out rows where all prediction columns are NA (78% of rows)
 seasonal_predictions <- seasonal_predictions %>%
@@ -1115,6 +1134,7 @@ Plot.plot({
 seasonal_predictions_tab <- spacetimeview(
   seasonal_predictions,
   style = 'Summary',
+  aggregate = 'MEAN',
   summary_radius = 45000,
   summary_height = 1,
   visible_controls = c('column_to_plot'),
@@ -1124,14 +1144,58 @@ seasonal_predictions_tab <- spacetimeview(
   json_digits = json_digits,
   observable = seasonal_predictions_observable_code,
   selectable_columns = c(
-   "Euoniticellus fulvus",
+   "All Beetles",
+   "Bubas bison",
+   "Copris elphenor",
+   "Copris hispanus",
+   "Digitonthophagus gazella",
    "Euoniticellus africanus",
-   "Copris hispanus"
+   "Euoniticellus fulvus",
+   "Euoniticellus intermedius",
+   "Euoniticellus pallipes",
+   "Geotrupes spiniger",
+   "Liatongus militaris",
+   "Onitis alexis",
+   "Onitis aygulus",
+   "Onitis caffer",
+   "Onitis pecuarius",
+   "Onitis vanderkelleni",
+   "Onitis viridulus",
+   "Onthophagus binodis",
+   "Onthophagus nigriventris",
+   "Onthophagus obliquus",
+   "Onthophagus sagittarius",
+   "Onthophagus taurus",
+   "Sisyphus rubrus",
+   "Sisyphus spinipes"
   ),
   factor_icons = list(
-   "Euoniticellus fulvus" = "public/beetle_images/Euoniticellus_fulvus.jpg",
+   "All Beetles" = "public/beetle_images/Species_richness.jpg",
+   "Bubas bison" = "public/beetle_images/Bubas_bison.jpg",
+   "Bubas bubalus" = "public/beetle_images/Bubas_bubalus.jpg",
+   "Copris elphenor" = "public/beetle_images/Copris_elphenor.jpg",
+   "Copris hispanus" = "public/beetle_images/Copris_hispanus.jpg",
+   "Digitonthophagus gazella" = "public/beetle_images/Digitonthophagus_gazella.jpg",
    "Euoniticellus africanus" = "public/beetle_images/Euoniticellus_africanus.jpg",
-   "Copris hispanus" = "public/beetle_images/Copris_hispanus.jpg"
+   "Euoniticellus fulvus" = "public/beetle_images/Euoniticellus_fulvus.jpg",
+   "Euoniticellus intermedius" = "public/beetle_images/Euoniticellus_intermedius.jpg",
+   "Euoniticellus pallipes" = "public/beetle_images/Euoniticellus_pallipes.jpg",
+   "Geotrupes spiniger" = "public/beetle_images/Geotrupes_spiniger.jpg",
+   "Liatongus militaris" = "public/beetle_images/Liatongus_militaris.jpg",
+   "Onitis alexis" = "public/beetle_images/Onitis_alexis.jpg",
+   "Onitis aygulus" = "public/beetle_images/Onitis_aygulus.jpg",
+   "Onitis caffer" = "public/beetle_images/Onitis_caffer.jpg",
+   "Onitis pecuarius" = "public/beetle_images/Onitis_pecuarius.jpg",
+   "Onitis vanderkelleni" = "public/beetle_images/Onitis_vanderkelleni.jpg",
+   "Onitis viridulus" = "public/beetle_images/Onitis_viridulus.jpg",
+   "Onthophagus binodis" = "public/beetle_images/Onthophagus_binodis.jpg",
+   "Onthophagus nigriventris" = "public/beetle_images/Onthophagus_nigriventris.jpg",
+   "Onthophagus obliquus" = "public/beetle_images/Onthophagus_obliquus.jpg",
+   "Onthophagus sagittarius" = "public/beetle_images/Onthophagus_sagittarius.jpg",
+   "Onthophagus taurus" = "public/beetle_images/Onthophagus_taurus.jpg",
+   "Onthophagus vacca" = "public/beetle_images/Onthophagus_vacca.jpg",
+   "Sisyphus rubrus" = "public/beetle_images/Sisyphus_rubrus.jpg",
+   "Sisyphus spinipes" = "public/beetle_images/Sisyphus_spinipes.jpg"
   ),
   country_codes = 'AU',
   header_title = "Dung Beetles of Australia",
@@ -1141,7 +1205,7 @@ seasonal_predictions_tab <- spacetimeview(
   initial_longitude = 134.35406022625756,
   initial_zoom = 4,
   about_text = about_text,
-  animation_speed = 6,
+  animation_speed = 3,
   initial_time_mode = 'seasonal',
   sticky_range = TRUE
 )
