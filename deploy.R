@@ -15,7 +15,12 @@ system("mkdir -p docs/")
 # move the HTML file into the subdirectory and rename it as index.html for direct access
 system("mv ./my_plot.html ./docs/index.html")
 
+# copy the data directory to docs if it exists
+if(dir.exists("data")) {
+  system("cp -r data/ docs/data/")
+}
+
 # commit and push the changes to GitHub
-system("git add docs/index.html")
+system("git add docs/")
 system("git commit -m 'Deploy spacetimeview widget to GitHub Pages'")
 system("git push")
