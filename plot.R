@@ -43,6 +43,22 @@ d <- d %>%
   rename_with(~ paste0(str_remove(.x, "pred_prob_0.95_upper_"), "_upper"), contains("pred_prob_0.95_upper_")) %>%
   rename("Number of species" = pred_richness_median)
 
+# Filter out species columns where all values are NA (these species have no spatial predictions)
+species_cols_to_check <- names(d)[!names(d) %in% c("decimalLatitude", "decimalLongitude", "Number of species") & !str_detect(names(d), "_lower|_upper")]
+species_to_remove <- character(0)
+for(col in species_cols_to_check) {
+  if(all(is.na(d[[col]]))) {
+    species_to_remove <- c(species_to_remove, col)
+    # Also remove the corresponding _lower and _upper columns
+    d <- d %>% select(-!!col, -!!paste0(col, "_lower"), -!!paste0(col, "_upper"))
+  }
+}
+if(length(species_to_remove) > 0) {
+  cat(sprintf("Removed %d species with no spatial predictions: %s\n",
+              length(species_to_remove),
+              paste(species_to_remove, collapse=", ")))
+}
+
 reversed_plot_limits_breaks <- rev(plot_limits_breaks)
 
 species_cols <- names(d)[!names(d) %in% c("decimalLatitude", "decimalLongitude", "Number of species") & !str_detect(names(d), "_lower|_upper")]
@@ -282,8 +298,6 @@ predictions_tab <- spacetimeview(
   legend_order = list(
     "Bubas bison" = legend_order,
     "Bubas bubalus" = legend_order,
-    "Copris elphenor" = legend_order,
-    "Copris hispanus" = legend_order,
     "Digitonthophagus gazella" = legend_order,
     "Euoniticellus africanus" = legend_order,
     "Euoniticellus fulvus" = legend_order,
@@ -295,11 +309,9 @@ predictions_tab <- spacetimeview(
     "Onitis aygulus" = legend_order,
     "Onitis caffer" = legend_order,
     "Onitis pecuarius" = legend_order,
-    "Onitis vanderkelleni" = legend_order,
     "Onitis viridulus" = legend_order,
     "Onthophagus binodis" = legend_order,
     "Onthophagus nigriventris" = legend_order,
-    "Onthophagus obliquus" = legend_order,
     "Onthophagus sagittarius" = legend_order,
     "Onthophagus taurus" = legend_order,
     "Onthophagus vacca" = legend_order,
@@ -309,8 +321,6 @@ predictions_tab <- spacetimeview(
   legend_labels = list(
     "Bubas bison" = legend_remapping,
     "Bubas bubalus" = legend_remapping,
-    "Copris elphenor" = legend_remapping,
-    "Copris hispanus" = legend_remapping,
     "Digitonthophagus gazella" = legend_remapping,
     "Euoniticellus africanus" = legend_remapping,
     "Euoniticellus fulvus" = legend_remapping,
@@ -322,11 +332,9 @@ predictions_tab <- spacetimeview(
     "Onitis aygulus" = legend_remapping,
     "Onitis caffer" = legend_remapping,
     "Onitis pecuarius" = legend_remapping,
-    "Onitis vanderkelleni" = legend_remapping,
     "Onitis viridulus" = legend_remapping,
     "Onthophagus binodis" = legend_remapping,
     "Onthophagus nigriventris" = legend_remapping,
-    "Onthophagus obliquus" = legend_remapping,
     "Onthophagus sagittarius" = legend_remapping,
     "Onthophagus taurus" = legend_remapping,
     "Onthophagus vacca" = legend_remapping,
@@ -364,8 +372,6 @@ predictions_tab <- spacetimeview(
   factor_colors = list(
     "Bubas bison" = prediction_colours,
     "Bubas bubalus" = prediction_colours,
-    "Copris elphenor" = prediction_colours,
-    "Copris hispanus" = prediction_colours,
     "Digitonthophagus gazella" = prediction_colours,
     "Euoniticellus africanus" = prediction_colours,
     "Euoniticellus fulvus" = prediction_colours,
@@ -377,11 +383,9 @@ predictions_tab <- spacetimeview(
     "Onitis aygulus" = prediction_colours,
     "Onitis caffer" = prediction_colours,
     "Onitis pecuarius" = prediction_colours,
-    "Onitis vanderkelleni" = prediction_colours,
     "Onitis viridulus" = prediction_colours,
     "Onthophagus binodis" = prediction_colours,
     "Onthophagus nigriventris" = prediction_colours,
-    "Onthophagus obliquus" = prediction_colours,
     "Onthophagus sagittarius" = prediction_colours,
     "Onthophagus taurus" = prediction_colours,
     "Onthophagus vacca" = prediction_colours,
@@ -391,8 +395,6 @@ predictions_tab <- spacetimeview(
   selectable_columns = c(
    "Number of species",
    "Bubas bison",
-   "Copris elphenor",
-   "Copris hispanus",
    "Digitonthophagus gazella",
    "Euoniticellus africanus",
    "Euoniticellus fulvus",
@@ -404,11 +406,9 @@ predictions_tab <- spacetimeview(
    "Onitis aygulus",
    "Onitis caffer",
    "Onitis pecuarius",
-   "Onitis vanderkelleni",
    "Onitis viridulus",
    "Onthophagus binodis",
    "Onthophagus nigriventris",
-   "Onthophagus obliquus",
    "Onthophagus sagittarius",
    "Onthophagus taurus",
    "Sisyphus rubrus",
@@ -421,7 +421,7 @@ predictions_tab <- spacetimeview(
   initial_latitude = -27.007754997248703, 
   initial_longitude = 134.35406022625756,
   initial_zoom = 4,
-  legend_direction_text = c("Bubas bison" = "Likelihood", "Bubas bubalus" = "Likelihood", "Copris elphenor" = "Likelihood", "Copris hispanus" = "Likelihood", "Digitonthophagus gazella" = "Likelihood", "Euoniticellus africanus" = "Likelihood", "Euoniticellus fulvus" = "Likelihood", "Euoniticellus intermedius" = "Likelihood", "Euoniticellus pallipes" = "Likelihood", "Geotrupes spiniger" = "Likelihood", "Liatongus militaris" = "Likelihood", "Onitis alexis" = "Likelihood", "Onitis aygulus" = "Likelihood", "Onitis caffer" = "Likelihood", "Onitis pecuarius" = "Likelihood", "Onitis vanderkelleni" = "Likelihood", "Onitis viridulus" = "Likelihood", "Onthophagus binodis" = "Likelihood", "Onthophagus nigriventris" = "Likelihood", "Onthophagus obliquus" = "Likelihood", "Onthophagus sagittarius" = "Likelihood", "Onthophagus taurus" = "Likelihood", "Onthophagus vacca" = "Likelihood", "Sisyphus rubrus" = "Likelihood", "Sisyphus spinipes" = "Likelihood"),
+  legend_direction_text = c("Bubas bison" = "Likelihood", "Bubas bubalus" = "Likelihood", "Digitonthophagus gazella" = "Likelihood", "Euoniticellus africanus" = "Likelihood", "Euoniticellus fulvus" = "Likelihood", "Euoniticellus intermedius" = "Likelihood", "Euoniticellus pallipes" = "Likelihood", "Geotrupes spiniger" = "Likelihood", "Liatongus militaris" = "Likelihood", "Onitis alexis" = "Likelihood", "Onitis aygulus" = "Likelihood", "Onitis caffer" = "Likelihood", "Onitis pecuarius" = "Likelihood", "Onitis viridulus" = "Likelihood", "Onthophagus binodis" = "Likelihood", "Onthophagus nigriventris" = "Likelihood", "Onthophagus sagittarius" = "Likelihood", "Onthophagus taurus" = "Likelihood", "Onthophagus vacca" = "Likelihood", "Sisyphus rubrus" = "Likelihood", "Sisyphus spinipes" = "Likelihood"),
   about_text = about_text
 )
 
@@ -1216,4 +1216,4 @@ plt <- predictions_tab + seasonal_predictions_tab + occurrence_tab# + model_vali
 
 names(plt) <- c('Predictions', 'Seasonal Predictions', 'Occurrences') #, 'Model Validation')
 
-plot(plt)
+serve(plt)
