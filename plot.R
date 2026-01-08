@@ -418,8 +418,8 @@ predictions_tab <- spacetimeview(
   header_title = "Dung Beetles of Australia",
   social_links = list(
     'github' = 'https://github.com/jakemanger/spacetimeview_dungbeetles',
-    'uwa' = list(url = 'https://www.uwa.edu.au/', image = '/uwacrest-small-white.svg'),
-    'mla' = list(url = 'https://www.mla.com.au/', image = '/mla_logo_home.svg')
+    'uwa' = list(url = 'https://www.uwa.edu.au/', image = 'public/uwacrest-small-white.svg'),
+    'mla' = list(url = 'https://www.mla.com.au/', image = 'public/mla_logo_home.svg')
   ),
   menu_text = 'Click on the coloured portions of the map to see what beetles are predicted to be found there\n\nOr select a species from the dropdown menu to view its range 👇',
   initial_latitude = -27.007754997248703, 
@@ -741,8 +741,8 @@ occurrence_tab <- spacetimeview(
   header_title = "Dung Beetles of Australia",
   social_links = list(
     'github' = 'https://github.com/jakemanger/spacetimeview_dungbeetles',
-    'uwa' = list(url = 'https://www.uwa.edu.au/', image = '/uwacrest-small-white.svg'),
-    'mla' = list(url = 'https://www.mla.com.au/', image = '/mla_logo_home.svg')
+    'uwa' = list(url = 'https://www.uwa.edu.au/', image = 'public/uwacrest-small-white.svg'),
+    'mla' = list(url = 'https://www.mla.com.au/', image = 'public/mla_logo_home.svg')
   ),
   menu_text = 'Click on the coloured portions of the map to see what beetles were found there\n\nOr select a species from the dropdown menu to view its observed range 👇',
   initial_latitude = -27.007754997248703, 
@@ -1209,8 +1209,8 @@ seasonal_predictions_tab <- spacetimeview(
   header_title = "Dung Beetles of Australia",
   social_links = list(
     'github' = 'https://github.com/jakemanger/spacetimeview_dungbeetles',
-    'uwa' = list(url = 'https://www.uwa.edu.au/', image = '/uwacrest-small-white.svg'),
-    'mla' = list(url = 'https://www.mla.com.au/', image = '/mla_logo_home.svg')
+    'uwa' = list(url = 'https://www.uwa.edu.au/', image = 'public/uwacrest-small-white.svg'),
+    'mla' = list(url = 'https://www.mla.com.au/', image = 'public/mla_logo_home.svg')
   ),
   menu_text = 'Click on a location to see predicted abundance of each beetle species throughout the year\n\nUse the dropdown menu to view a different species 👇',
   initial_latitude = -27.007754997248703,
