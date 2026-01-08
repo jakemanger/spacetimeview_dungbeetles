@@ -416,7 +416,11 @@ predictions_tab <- spacetimeview(
   ),
   country_codes = 'AU',
   header_title = "Dung Beetles of Australia",
-  social_links = c('github'='https://github.com/jakemanger/spacetimeview_dungbeetles'),
+  social_links = list(
+    'github' = 'https://github.com/jakemanger/spacetimeview_dungbeetles',
+    'uwa' = list(url = 'https://www.uwa.edu.au/', image = '/uwacrest-small-white.svg'),
+    'mla' = list(url = 'https://www.mla.com.au/', image = '/mla_logo_home.svg')
+  ),
   menu_text = 'Click on the coloured portions of the map to see what beetles are predicted to be found there\n\nOr select a species from the dropdown menu to view its range 👇',
   initial_latitude = -27.007754997248703, 
   initial_longitude = 134.35406022625756,
@@ -735,7 +739,11 @@ occurrence_tab <- spacetimeview(
   ),
   country_codes = 'AU',
   header_title = "Dung Beetles of Australia",
-  social_links = c('github'='https://github.com/jakemanger/spacetimeview_dungbeetles'),
+  social_links = list(
+    'github' = 'https://github.com/jakemanger/spacetimeview_dungbeetles',
+    'uwa' = list(url = 'https://www.uwa.edu.au/', image = '/uwacrest-small-white.svg'),
+    'mla' = list(url = 'https://www.mla.com.au/', image = '/mla_logo_home.svg')
+  ),
   menu_text = 'Click on the coloured portions of the map to see what beetles were found there\n\nOr select a species from the dropdown menu to view its observed range 👇',
   initial_latitude = -27.007754997248703, 
   initial_longitude = 134.35406022625756,
@@ -1199,7 +1207,11 @@ seasonal_predictions_tab <- spacetimeview(
   ),
   country_codes = 'AU',
   header_title = "Dung Beetles of Australia",
-  social_links = c('github'='https://github.com/jakemanger/spacetimeview_dungbeetles'),
+  social_links = list(
+    'github' = 'https://github.com/jakemanger/spacetimeview_dungbeetles',
+    'uwa' = list(url = 'https://www.uwa.edu.au/', image = '/uwacrest-small-white.svg'),
+    'mla' = list(url = 'https://www.mla.com.au/', image = '/mla_logo_home.svg')
+  ),
   menu_text = 'Click on a location to see predicted abundance of each beetle species throughout the year\n\nUse the dropdown menu to view a different species 👇',
   initial_latitude = -27.007754997248703,
   initial_longitude = 134.35406022625756,
@@ -1216,4 +1228,7 @@ plt <- predictions_tab + seasonal_predictions_tab + occurrence_tab# + model_vali
 
 names(plt) <- c('Predictions', 'Seasonal Predictions', 'Occurrences') #, 'Model Validation')
 
-serve(plt)
+# Comment out serve() so it doesn't run during deployment
+# Uncomment this line to serve locally for development
+# serve(plt)
+print('Created dashboard. Start it up with: serve(plt)')
