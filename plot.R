@@ -417,7 +417,7 @@ predictions_tab <- spacetimeview(
   country_codes = 'AU',
   header_title = "Dung Beetles of Australia",
   social_links = list(
-    'github' = 'https://github.com/jakemanger/spacetimeview_dungbeetles',
+    # 'github' = 'https://github.com/jakemanger/spacetimeview_dungbeetles',
     'uwa' = list(url = 'https://www.uwa.edu.au/', image = 'public/uwacrest-small-white.svg'),
     'mla' = list(url = 'https://www.mla.com.au/', image = 'public/mla_logo_home.svg')
   ),
@@ -740,7 +740,7 @@ occurrence_tab <- spacetimeview(
   country_codes = 'AU',
   header_title = "Dung Beetles of Australia",
   social_links = list(
-    'github' = 'https://github.com/jakemanger/spacetimeview_dungbeetles',
+    # 'github' = 'https://github.com/jakemanger/spacetimeview_dungbeetles',
     'uwa' = list(url = 'https://www.uwa.edu.au/', image = 'public/uwacrest-small-white.svg'),
     'mla' = list(url = 'https://www.mla.com.au/', image = 'public/mla_logo_home.svg')
   ),
@@ -1208,7 +1208,7 @@ seasonal_predictions_tab <- spacetimeview(
   country_codes = 'AU',
   header_title = "Dung Beetles of Australia",
   social_links = list(
-    'github' = 'https://github.com/jakemanger/spacetimeview_dungbeetles',
+    # 'github' = 'https://github.com/jakemanger/spacetimeview_dungbeetles',
     'uwa' = list(url = 'https://www.uwa.edu.au/', image = 'public/uwacrest-small-white.svg'),
     'mla' = list(url = 'https://www.mla.com.au/', image = 'public/mla_logo_home.svg')
   ),
@@ -1226,9 +1226,10 @@ seasonal_predictions_tab <- spacetimeview(
 # hide model validation tab -> it is too big anyway
 plt <- predictions_tab + seasonal_predictions_tab + occurrence_tab# + model_validation_tab
 
-names(plt) <- c('Predictions', 'Seasonal Predictions', 'Occurrences') #, 'Model Validation')
+names(plt) <- c('Annual Predictions', 'Seasonal Predictions', 'Occurrences') #, 'Model Validation')
 
 # Comment out serve() so it doesn't run during deployment
+#
 # Uncomment this line to serve locally for development
 # serve(plt)
-print('Created dashboard. Start it up with: serve(plt)')
+print('Created dashboard. If developing, start it up with: serve(plt)')
