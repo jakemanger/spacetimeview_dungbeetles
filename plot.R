@@ -1049,94 +1049,148 @@ cat(sprintf("Seasonal predictions: filtered from %s to %s rows (removed %s%% emp
             round(100 * (1 - nrow(seasonal_predictions) / nrow(seasonal_predictions_raw)), 1)))
 
 seasonal_predictions_observable_code <- "
-Plot.plot({
-  marks: [
-    ...(() => {
-      var speciesColumns = Object.keys(data[0])
-        .filter(key => key !== 'lat' && key !== 'lng' && key !== 'value' && key !== 'timestamp' && key !== 'originalTimestamp'
-          && key !== 'decimalLatitude' && key !== 'decimalLongitude' && key !== 'eventDate'
-          && !key.includes('_pred') && !key.includes('_lower') && !key.includes('_upper'));
+(() => {
+  function makeMessage(message) {
+    var div = document.createElement('div');
+    div.style.cssText = 'padding:20px;color:#666;font-family:system-ui,sans-serif;';
+    div.textContent = message;
+    return div;
+  }
 
-      if (!data || data.length === 0 || speciesColumns.length === 0) {
-        return [Plot.text(['No data available'], {x: 0.5, y: 0.5, text: d => d})];
-      }
+  if (!data || data.length === 0) {
+    return makeMessage('No data available');
+  }
 
-      var selectedSpecies = columnName;
-      var lowerKey = selectedSpecies + '_pred_lower';
-      var upperKey = selectedSpecies + '_pred_upper';
+  var selectedSpecies = columnName;
+  var lowerKey = selectedSpecies + '_pred_lower';
+  var upperKey = selectedSpecies + '_pred_upper';
+  var timeField = data[0].timestamp ? 'timestamp' : (data[0].eventDate ? 'eventDate' : null);
 
-      var marks = [];
+  if (!timeField) {
+    return makeMessage('No time data available');
+  }
 
-      var timeField = data[0].timestamp ? 'timestamp' : (data[0].eventDate ? 'eventDate' : null);
+  var sortedData = data
+    .slice()
+    .filter(d => d[timeField] && d[selectedSpecies] !== undefined && d[selectedSpecies] !== null)
+    .sort((a, b) => new Date(a[timeField]) - new Date(b[timeField]));
 
-      if (!timeField) {
-        return [Plot.text(['No time data available'], {x: 0.5, y: 0.5, text: d => d})];
-      }
+  if (sortedData.length === 0) {
+    return makeMessage('No seasonal prediction data available for this location');
+  }
 
-      var sortedData = data.slice().sort((a, b) => new Date(a[timeField]) - new Date(b[timeField]));
+  var hasFilterRange = Array.isArray(filter) && Number.isFinite(filter[0]) && Number.isFinite(filter[1]);
+  var selectedData = hasFilterRange
+    ? sortedData.filter(d => {
+        var t = new Date(d[timeField]).getTime();
+        return t >= filter[0] && t <= filter[1];
+      })
+    : sortedData;
 
-      var dataWithPred = sortedData.filter(d => d[timeField] && d[selectedSpecies] !== undefined);
-      if (dataWithPred.length > 0) {
-        marks.push(
-          Plot.areaY(
-            dataWithPred,
-            {
-              x: d => new Date(d[timeField]),
-              y1: d => Math.max(0.001, d[lowerKey] || 0.001),
-              y2: d => Math.max(0.001, d[upperKey] || 0.001),
-              fill: '#3498db',
-              fillOpacity: 0.2,
-              z: 'Confidence interval'
-            }
-          )
-        );
+  if (selectedData.length === 0) {
+    selectedData = sortedData;
+  }
 
-        marks.push(
-          Plot.line(
-            dataWithPred,
-            {
-              x: d => new Date(d[timeField]),
-              y: d => Math.max(0.001, d[selectedSpecies] || 0.001),
-              stroke: '#3498db',
-              strokeWidth: 2,
-              z: 'Predicted abundance'
-            }
-          )
-        );
-      }
+  var formatValue = value => Number(value || 0).toLocaleString(undefined, {
+    minimumFractionDigits: value > 0 && value < 1 ? 2 : 0,
+    maximumFractionDigits: 2
+  });
+  var mean = values => {
+    var finiteValues = values.map(Number).filter(Number.isFinite);
+    if (finiteValues.length === 0) return 0;
+    return finiteValues.reduce((sum, value) => sum + value, 0) / finiteValues.length;
+  };
 
-      if (marks.length === 0) {
-        return [Plot.text(['No seasonal prediction data available for this location'], {x: 0.5, y: 0.5, text: d => d})];
-      }
+  var selectedMean = mean(selectedData.map(d => d[selectedSpecies]));
+  var lowerMean = mean(selectedData.map(d => d[lowerKey]));
+  var upperMean = mean(selectedData.map(d => d[upperKey]));
+  var startDate = new Date(hasFilterRange ? filter[0] : sortedData[0][timeField]).toLocaleDateString(undefined, {month: 'short', day: 'numeric'});
+  var endDate = new Date(hasFilterRange ? filter[1] : sortedData[sortedData.length - 1][timeField]).toLocaleDateString(undefined, {month: 'short', day: 'numeric'});
+  var lat = Number(data[0].lat ?? data[0].decimalLatitude);
+  var lng = Number(data[0].lng ?? data[0].decimalLongitude);
+  var location = Number.isFinite(lat) && Number.isFinite(lng)
+    ? lat.toFixed(2) + ', ' + lng.toFixed(2)
+    : 'selected map cell';
 
-      return marks;
-    })()
-  ],
-  color: {
-    legend: true,
-    domain: ['Predicted abundance', 'Confidence interval'],
-    range: ['#3498db', '#3498db']
-  },
-  x: {
-    type: 'time',
-    label: 'Date',
-    grid: true
-  },
-  y: {
-    label: 'Abundance',
-    grid: true,
-    tickFormat: d => d < 1 ? d.toFixed(2) : Math.round(d).toString()
-  },
-  style: {
-    fontSize: '12px'
-  },
-  title: 'Predicted abundance over the year at ' + (data[0] ? (data[0].lat || data[0].decimalLatitude || 0).toFixed(2) : '0') + ', ' + (data[0] ? (data[0].lng || data[0].decimalLongitude || 0).toFixed(2) : '0'),
-  width: 450,
-  height: 300,
-  marginBottom: 40,
-  marginLeft: 60,
-  marginRight: 20
-})
+  var wrapper = document.createElement('div');
+  wrapper.style.cssText = 'font-family:system-ui,sans-serif;color:#24313d;';
+
+  var summary = document.createElement('div');
+  summary.style.cssText = 'width:450px;box-sizing:border-box;padding:6px 12px 0 12px;font-size:12px;line-height:1.35;';
+  summary.innerHTML =
+    '<div style=\"font-weight:700;font-size:13px;\">Average predicted abundance for ' + selectedSpecies + '</div>' +
+    '<div>' + startDate + ' - ' + endDate + ' at ' + location + ': ' + formatValue(selectedMean) + ' beetles</div>' +
+    '<div style=\"color:#5f6f7f;\">95% CI: ' + formatValue(lowerMean) + ' - ' + formatValue(upperMean) + ' beetles</div>';
+  wrapper.appendChild(summary);
+
+  wrapper.appendChild(Plot.plot({
+    marks: [
+      Plot.areaY(
+        sortedData,
+        {
+          x: d => new Date(d[timeField]),
+          y1: d => Math.max(0, d[lowerKey] || 0),
+          y2: d => Math.max(0, d[upperKey] || 0),
+          fill: '#3498db',
+          fillOpacity: 0.2,
+          z: 'Confidence interval'
+        }
+      ),
+      Plot.line(
+        sortedData,
+        {
+          x: d => new Date(d[timeField]),
+          y: d => Math.max(0, d[selectedSpecies] || 0),
+          stroke: '#3498db',
+          strokeWidth: 2,
+          z: 'Predicted abundance'
+        }
+      ),
+      Plot.dot(
+        sortedData,
+        {
+          x: d => new Date(d[timeField]),
+          y: d => Math.max(0, d[selectedSpecies] || 0),
+          fill: '#3498db',
+          r: 2,
+          title: d => {
+            var date = new Date(d[timeField]).toLocaleDateString(undefined, {month: 'short', day: 'numeric'});
+            var median = d[selectedSpecies] || 0;
+            var lower = d[lowerKey] || 0;
+            var upper = d[upperKey] || 0;
+            return date + '\\nWeekly average abundance: ' + formatValue(median) + ' beetles\\nLower: ' + formatValue(lower) + '\\nUpper: ' + formatValue(upper);
+          }
+        }
+      )
+    ],
+    color: {
+      legend: true,
+      domain: ['Predicted abundance', 'Confidence interval'],
+      range: ['#3498db', '#3498db']
+    },
+    x: {
+      type: 'time',
+      label: 'Date',
+      grid: true
+    },
+    y: {
+      label: 'Weekly average abundance (beetles in one dung pat over 24 hours)',
+      grid: true,
+      tickFormat: d => d < 1 ? d.toFixed(2) : Math.round(d).toString()
+    },
+    style: {
+      fontSize: '12px'
+    },
+    width: 450,
+    height: 300,
+    marginBottom: 40,
+    marginLeft: 80,
+    marginRight: 20,
+    marginTop: 20
+  }));
+
+  return wrapper;
+})()
 "
 
 seasonal_predictions_tab <- spacetimeview(
@@ -1212,10 +1266,13 @@ seasonal_predictions_tab <- spacetimeview(
     'uwa' = list(url = 'https://www.uwa.edu.au/', image = 'public/uwacrest-small-white.svg'),
     'mla' = list(url = 'https://www.mla.com.au/', image = 'public/mla_logo_home.svg')
   ),
-  menu_text = 'Click on a location to see predicted abundance of each beetle species throughout the year\n\nUse the dropdown menu to view a different species 👇',
+  menu_text = 'Click on a location to see average predicted beetle abundance\n\nUse the dropdown menu to view a different species 👇',
   initial_latitude = -27.007754997248703,
   initial_longitude = 134.35406022625756,
   initial_zoom = 4,
+  legend_direction_text = "Average predicted abundance (beetles)",
+  legendTimeRangeText = TRUE,
+  legendMetricLabel = "in one dung pat over 24 hours, between {range}",
   about_text = about_text,
   animation_speed = 3,
   initial_time_mode = 'seasonal',
@@ -1227,6 +1284,7 @@ biomass_predictions_raw <- readRDS("biomass_all_years.rds")
 
 biomass_predictions <- biomass_predictions_raw %>%
   transmute(
+    grid_id = id,
     decimalLatitude,
     decimalLongitude,
     eventDate = `eventDate_2010-11`,
@@ -1241,9 +1299,13 @@ biomass_predictions <- biomass_predictions_raw %>%
     `2020-2021_upper` = `biomass_upper_2020-2021`
   ) %>%
   mutate(year_week = floor_date(eventDate, "week")) %>%
-  group_by(decimalLatitude, decimalLongitude, year_week) %>%
+  group_by(grid_id, decimalLatitude, decimalLongitude, year_week) %>%
   summarise(
-    across(where(is.numeric), ~ mean(.x, na.rm = TRUE)),
+    across(all_of(c(
+      "2010-2011", "2010-2011_lower", "2010-2011_upper",
+      "2015-2016", "2015-2016_lower", "2015-2016_upper",
+      "2020-2021", "2020-2021_lower", "2020-2021_upper"
+    )), ~ mean(.x, na.rm = TRUE)),
     .groups = "drop"
   ) %>%
   rename(eventDate = year_week)
@@ -1255,102 +1317,154 @@ cat(sprintf("Biomass predictions: aggregated from %s to %s rows\n",
             format(nrow(biomass_predictions), big.mark=",")))
 
 biomass_observable_code <- "
-Plot.plot({
-  marks: [
-    ...(() => {
-      if (!data || data.length === 0) {
-        return [Plot.text(['No biomass data available'], {x: 0.5, y: 0.5, text: d => d})];
-      }
+(() => {
+  var makeMessage = message => {
+    var div = document.createElement('div');
+    div.style.cssText = 'padding:20px;color:#666;font-family:system-ui,sans-serif;';
+    div.textContent = message;
+    return div;
+  };
 
-      var selectedYear = columnName;
-      var lowerKey = selectedYear + '_lower';
-      var upperKey = selectedYear + '_upper';
-      var timeField = data[0].timestamp ? 'timestamp' : (data[0].eventDate ? 'eventDate' : null);
+  if (!data || data.length === 0) {
+    return makeMessage('No biomass data available');
+  }
 
-      if (!timeField) {
-        return [Plot.text(['No time data available'], {x: 0.5, y: 0.5, text: d => d})];
-      }
+  var selectedYear = columnName;
+  var lowerKey = selectedYear + '_lower';
+  var upperKey = selectedYear + '_upper';
+  var timeField = data[0].timestamp ? 'timestamp' : (data[0].eventDate ? 'eventDate' : null);
+  var formatValue = value => Number(value || 0).toLocaleString(undefined, {
+    maximumFractionDigits: 1
+  });
 
-      var sortedData = data
-        .filter(d => d[timeField] && d[selectedYear] !== undefined && d[selectedYear] !== null)
-        .sort((a, b) => new Date(a[timeField]) - new Date(b[timeField]));
+  if (!timeField) {
+    return makeMessage('No time data available');
+  }
 
-      if (sortedData.length === 0) {
-        return [Plot.text(['No biomass data available for this location'], {x: 0.5, y: 0.5, text: d => d})];
-      }
+  var sortedData = data
+    .filter(d => d[timeField] && d[selectedYear] !== undefined && d[selectedYear] !== null)
+    .sort((a, b) => new Date(a[timeField]) - new Date(b[timeField]));
 
-      return [
-        Plot.areaY(
-          sortedData,
-          {
-            x: d => new Date(d[timeField]),
-            y1: d => Math.max(0, d[lowerKey] || 0),
-            y2: d => Math.max(0, d[upperKey] || 0),
-            fill: '#8c510a',
-            fillOpacity: 0.2,
-            z: 'Prediction interval'
+  if (sortedData.length === 0) {
+    return makeMessage('No biomass data available for this location');
+  }
+
+  var mean = values => {
+    var finiteValues = values.map(Number).filter(Number.isFinite);
+    if (finiteValues.length === 0) return 0;
+    return finiteValues.reduce((sum, value) => sum + value, 0) / finiteValues.length;
+  };
+  var hasFilterRange = Array.isArray(filter) && Number.isFinite(filter[0]) && Number.isFinite(filter[1]);
+  var selectedData = hasFilterRange
+    ? sortedData.filter(d => {
+        var t = new Date(d[timeField]).getTime();
+        return t >= filter[0] && t <= filter[1];
+      })
+    : sortedData;
+
+  if (selectedData.length === 0) {
+    selectedData = sortedData;
+  }
+
+  var selectedMean = mean(selectedData.map(d => d[selectedYear]));
+  var lowerMean = mean(selectedData.map(d => d[lowerKey]));
+  var upperMean = mean(selectedData.map(d => d[upperKey]));
+  var gridIds = Array.from(new Set(
+    sortedData
+      .map(d => d.grid_id)
+      .filter(id => id !== undefined && id !== null)
+  ));
+  var cellId = gridIds.length === 1 ? 'grid cell ' + gridIds[0] :
+    (gridIds.length > 1 ? gridIds.length + ' grid cells' : 'selected map cell');
+  var startDate = new Date(hasFilterRange ? filter[0] : sortedData[0][timeField]).toLocaleDateString(undefined, {month: 'short', day: 'numeric'});
+  var endDate = new Date(hasFilterRange ? filter[1] : sortedData[sortedData.length - 1][timeField]).toLocaleDateString(undefined, {month: 'short', day: 'numeric'});
+
+  var wrapper = document.createElement('div');
+  wrapper.style.cssText = 'font-family:system-ui,sans-serif;color:#24313d;';
+
+  var summary = document.createElement('div');
+  summary.style.cssText = 'width:450px;box-sizing:border-box;padding:6px 12px 0 12px;font-size:12px;line-height:1.35;';
+  summary.innerHTML =
+    '<div style=\"font-weight:700;font-size:13px;\">Average predicted biomass for ' + selectedYear + '</div>' +
+    '<div>' + startDate + ' - ' + endDate + ' in ' + cellId + ': ' + formatValue(selectedMean) + ' g</div>' +
+    '<div style=\"color:#5f6f7f;\">95% CI: ' + formatValue(lowerMean) + ' - ' + formatValue(upperMean) + ' g</div>';
+  wrapper.appendChild(summary);
+
+  wrapper.appendChild(Plot.plot({
+    marks: [
+      Plot.areaY(
+        sortedData,
+        {
+          x: d => new Date(d[timeField]),
+          y1: d => Math.max(0, d[lowerKey] || 0),
+          y2: d => Math.max(0, d[upperKey] || 0),
+          fill: '#8c510a',
+          fillOpacity: 0.2,
+          z: 'Prediction interval'
+        }
+      ),
+      Plot.line(
+        sortedData,
+        {
+          x: d => new Date(d[timeField]),
+          y: d => Math.max(0, d[selectedYear] || 0),
+          stroke: '#543005',
+          strokeWidth: 2,
+          z: 'Median biomass'
+        }
+      ),
+      Plot.dot(
+        sortedData,
+        {
+          x: d => new Date(d[timeField]),
+          y: d => Math.max(0, d[selectedYear] || 0),
+          fill: '#543005',
+          r: 2,
+          title: d => {
+            var date = new Date(d[timeField]).toLocaleDateString(undefined, {month: 'short', day: 'numeric'});
+            var median = d[selectedYear] || 0;
+            var lower = d[lowerKey] || 0;
+            var upper = d[upperKey] || 0;
+            return date + '\\nWeekly average biomass: ' + median.toFixed(2) + ' g\\nLower: ' + lower.toFixed(2) + ' g\\nUpper: ' + upper.toFixed(2) + ' g';
           }
-        ),
-        Plot.line(
-          sortedData,
-          {
-            x: d => new Date(d[timeField]),
-            y: d => Math.max(0, d[selectedYear] || 0),
-            stroke: '#543005',
-            strokeWidth: 2,
-            z: 'Median biomass'
-          }
-        ),
-        Plot.dot(
-          sortedData,
-          {
-            x: d => new Date(d[timeField]),
-            y: d => Math.max(0, d[selectedYear] || 0),
-            fill: '#543005',
-            r: 2,
-            title: d => {
-              var date = new Date(d[timeField]).toLocaleDateString(undefined, {month: 'short', day: 'numeric'});
-              var median = d[selectedYear] || 0;
-              var lower = d[lowerKey] || 0;
-              var upper = d[upperKey] || 0;
-              return date + '\\nMedian: ' + median.toFixed(2) + '\\nLower: ' + lower.toFixed(2) + '\\nUpper: ' + upper.toFixed(2);
-            }
-          }
-        )
-      ];
-    })()
-  ],
-  color: {
-    legend: true,
-    domain: ['Median biomass', 'Prediction interval'],
-    range: ['#543005', '#8c510a']
-  },
-  x: {
-    type: 'time',
-    label: 'Season',
-    grid: true,
-    tickFormat: d => d.toLocaleDateString(undefined, {month: 'short'})
-  },
-  y: {
-    label: 'Biomass',
-    grid: true,
-    tickFormat: d => d < 1 ? d.toFixed(2) : Math.round(d).toString()
-  },
-  style: {
-    fontSize: '12px'
-  },
-  title: 'Predicted beetle biomass for ' + columnName + ' at ' + (data[0] ? (data[0].lat || data[0].decimalLatitude || 0).toFixed(2) : '0') + ', ' + (data[0] ? (data[0].lng || data[0].decimalLongitude || 0).toFixed(2) : '0'),
-  width: 450,
-  height: 300,
-  marginBottom: 40,
-  marginLeft: 60,
-  marginRight: 20
-})
+        }
+      )
+    ],
+    color: {
+      legend: true,
+      domain: ['Median biomass', 'Prediction interval'],
+      range: ['#543005', '#8c510a']
+    },
+    x: {
+      type: 'time',
+      label: 'Season',
+      grid: true,
+      tickFormat: d => d.toLocaleDateString(undefined, {month: 'short'})
+    },
+    y: {
+      label: 'Weekly average biomass (g in one dung pat over 24 hours)',
+      grid: true,
+      tickFormat: d => d < 1 ? d.toFixed(2) : Math.round(d).toLocaleString()
+    },
+    style: {
+      fontSize: '12px'
+    },
+    width: 450,
+    height: 280,
+    marginBottom: 40,
+    marginLeft: 70,
+    marginRight: 20,
+    marginTop: 20
+  }));
+
+  return wrapper;
+})()
 "
 
 biomass_tab <- spacetimeview(
   biomass_predictions,
   style = 'Summary',
+  column_to_plot = biomass_selectable_columns[1],
   aggregate = 'MEAN',
   summary_radius = 45000,
   summary_height = 1,
@@ -1363,17 +1477,20 @@ biomass_tab <- spacetimeview(
   selectable_columns = biomass_selectable_columns,
   color_scheme = 'YlOrBr',
   country_codes = 'AU',
+  num_decimals = 0,
   header_title = "Dung Beetles of Australia",
   social_links = list(
     # 'github' = 'https://github.com/jakemanger/spacetimeview_dungbeetles',
     'uwa' = list(url = 'https://www.uwa.edu.au/', image = 'public/uwacrest-small-white.svg'),
     'mla' = list(url = 'https://www.mla.com.au/', image = 'public/mla_logo_home.svg')
   ),
-  menu_text = 'Click on a location to see predicted beetle biomass through the year\n\nUse the dropdown menu to compare financial years 👇',
+  menu_text = 'Click on a location to see average predicted beetle biomass\n\nUse the dropdown menu to compare financial years 👇',
   initial_latitude = -27.007754997248703,
   initial_longitude = 134.35406022625756,
   initial_zoom = 4,
-  legend_direction_text = "Biomass",
+  legend_direction_text = "Average predicted biomass (g)",
+  legendTimeRangeText = TRUE,
+  legendMetricLabel = "in one dung pat over 24 hours, between {range}",
   about_text = about_text,
   animation_speed = 3,
   initial_time_mode = 'seasonal',
