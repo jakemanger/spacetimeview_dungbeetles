@@ -1223,10 +1223,168 @@ seasonal_predictions_tab <- spacetimeview(
 )
 
 
-# hide model validation tab -> it is too big anyway
-plt <- predictions_tab + seasonal_predictions_tab + occurrence_tab# + model_validation_tab
+biomass_predictions_raw <- readRDS("biomass_all_years.rds")
 
-names(plt) <- c('Annual Predictions', 'Seasonal Predictions', 'Occurrences') #, 'Model Validation')
+biomass_predictions <- biomass_predictions_raw %>%
+  transmute(
+    decimalLatitude,
+    decimalLongitude,
+    eventDate = `eventDate_2010-11`,
+    `2010-2011` = `biomass_median_2010-2011`,
+    `2010-2011_lower` = `biomass_lower_2010-2011`,
+    `2010-2011_upper` = `biomass_upper_2010-2011`,
+    `2015-2016` = `biomass_median_2015-2016`,
+    `2015-2016_lower` = `biomass_lower_2015-2016`,
+    `2015-2016_upper` = `biomass_upper_2015-2016`,
+    `2020-2021` = `biomass_median_2020-2021`,
+    `2020-2021_lower` = `biomass_lower_2020-2021`,
+    `2020-2021_upper` = `biomass_upper_2020-2021`
+  ) %>%
+  mutate(year_week = floor_date(eventDate, "week")) %>%
+  group_by(decimalLatitude, decimalLongitude, year_week) %>%
+  summarise(
+    across(where(is.numeric), ~ mean(.x, na.rm = TRUE)),
+    .groups = "drop"
+  ) %>%
+  rename(eventDate = year_week)
+
+biomass_selectable_columns <- c("2010-2011", "2015-2016", "2020-2021")
+
+cat(sprintf("Biomass predictions: aggregated from %s to %s rows\n",
+            format(nrow(biomass_predictions_raw), big.mark=","),
+            format(nrow(biomass_predictions), big.mark=",")))
+
+biomass_observable_code <- "
+Plot.plot({
+  marks: [
+    ...(() => {
+      if (!data || data.length === 0) {
+        return [Plot.text(['No biomass data available'], {x: 0.5, y: 0.5, text: d => d})];
+      }
+
+      var selectedYear = columnName;
+      var lowerKey = selectedYear + '_lower';
+      var upperKey = selectedYear + '_upper';
+      var timeField = data[0].timestamp ? 'timestamp' : (data[0].eventDate ? 'eventDate' : null);
+
+      if (!timeField) {
+        return [Plot.text(['No time data available'], {x: 0.5, y: 0.5, text: d => d})];
+      }
+
+      var sortedData = data
+        .filter(d => d[timeField] && d[selectedYear] !== undefined && d[selectedYear] !== null)
+        .sort((a, b) => new Date(a[timeField]) - new Date(b[timeField]));
+
+      if (sortedData.length === 0) {
+        return [Plot.text(['No biomass data available for this location'], {x: 0.5, y: 0.5, text: d => d})];
+      }
+
+      return [
+        Plot.areaY(
+          sortedData,
+          {
+            x: d => new Date(d[timeField]),
+            y1: d => Math.max(0, d[lowerKey] || 0),
+            y2: d => Math.max(0, d[upperKey] || 0),
+            fill: '#8c510a',
+            fillOpacity: 0.2,
+            z: 'Prediction interval'
+          }
+        ),
+        Plot.line(
+          sortedData,
+          {
+            x: d => new Date(d[timeField]),
+            y: d => Math.max(0, d[selectedYear] || 0),
+            stroke: '#543005',
+            strokeWidth: 2,
+            z: 'Median biomass'
+          }
+        ),
+        Plot.dot(
+          sortedData,
+          {
+            x: d => new Date(d[timeField]),
+            y: d => Math.max(0, d[selectedYear] || 0),
+            fill: '#543005',
+            r: 2,
+            title: d => {
+              var date = new Date(d[timeField]).toLocaleDateString(undefined, {month: 'short', day: 'numeric'});
+              var median = d[selectedYear] || 0;
+              var lower = d[lowerKey] || 0;
+              var upper = d[upperKey] || 0;
+              return date + '\\nMedian: ' + median.toFixed(2) + '\\nLower: ' + lower.toFixed(2) + '\\nUpper: ' + upper.toFixed(2);
+            }
+          }
+        )
+      ];
+    })()
+  ],
+  color: {
+    legend: true,
+    domain: ['Median biomass', 'Prediction interval'],
+    range: ['#543005', '#8c510a']
+  },
+  x: {
+    type: 'time',
+    label: 'Season',
+    grid: true,
+    tickFormat: d => d.toLocaleDateString(undefined, {month: 'short'})
+  },
+  y: {
+    label: 'Biomass',
+    grid: true,
+    tickFormat: d => d < 1 ? d.toFixed(2) : Math.round(d).toString()
+  },
+  style: {
+    fontSize: '12px'
+  },
+  title: 'Predicted beetle biomass for ' + columnName + ' at ' + (data[0] ? (data[0].lat || data[0].decimalLatitude || 0).toFixed(2) : '0') + ', ' + (data[0] ? (data[0].lng || data[0].decimalLongitude || 0).toFixed(2) : '0'),
+  width: 450,
+  height: 300,
+  marginBottom: 40,
+  marginLeft: 60,
+  marginRight: 20
+})
+"
+
+biomass_tab <- spacetimeview(
+  biomass_predictions,
+  style = 'Summary',
+  aggregate = 'MEAN',
+  summary_radius = 45000,
+  summary_height = 1,
+  visible_controls = c('column_to_plot'),
+  control_names = c(
+   column_to_plot = 'Select a financial year'
+  ),
+  json_digits = json_digits,
+  observable = biomass_observable_code,
+  selectable_columns = biomass_selectable_columns,
+  color_scheme = 'YlOrBr',
+  country_codes = 'AU',
+  header_title = "Dung Beetles of Australia",
+  social_links = list(
+    # 'github' = 'https://github.com/jakemanger/spacetimeview_dungbeetles',
+    'uwa' = list(url = 'https://www.uwa.edu.au/', image = 'public/uwacrest-small-white.svg'),
+    'mla' = list(url = 'https://www.mla.com.au/', image = 'public/mla_logo_home.svg')
+  ),
+  menu_text = 'Click on a location to see predicted beetle biomass through the year\n\nUse the dropdown menu to compare financial years 👇',
+  initial_latitude = -27.007754997248703,
+  initial_longitude = 134.35406022625756,
+  initial_zoom = 4,
+  legend_direction_text = "Biomass",
+  about_text = about_text,
+  animation_speed = 3,
+  initial_time_mode = 'seasonal',
+  sticky_range = TRUE
+)
+
+
+# hide model validation tab -> it is too big anyway
+plt <- predictions_tab + seasonal_predictions_tab + biomass_tab + occurrence_tab# + model_validation_tab
+
+names(plt) <- c('Annual Predictions', 'Seasonal Predictions', 'Beetle Biomass', 'Occurrences') #, 'Model Validation')
 
 # Comment out serve() so it doesn't run during deployment
 #
