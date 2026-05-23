@@ -4,23 +4,24 @@ devtools::load_all('../spacetimeview')
 
 source('plot.R')
 
-# save it
-htmlwidgets::saveWidget(spacetimetabs(plt), "my_plot.html")
-
-# automate GitHub Pages setup to deploy html files in the `docs` folder
-usethis::use_github_pages(branch='main', path='/docs')
-# move the my_plot.html we just generated to the docs folder and push it to github
-system("mkdir -p docs/")
-
-# move the HTML file into the subdirectory and rename it as index.html for direct access
-system("mv ./my_plot.html ./docs/index.html")
+# save it straight into the GitHub Pages folder
+dir.create("docs", showWarnings = FALSE, recursive = TRUE)
+htmlwidgets::saveWidget(spacetimetabs(plt), "docs/index.html", selfcontained = FALSE)
 
 # copy the data directory to docs if it exists
 if(dir.exists("data")) {
-  system("cp -r data/ docs/data/")
+  if (dir.exists("docs/data")) {
+    unlink("docs/data", recursive = TRUE)
+  }
+  dir.create("docs/data", showWarnings = FALSE, recursive = TRUE)
+  file.copy(list.files("data", full.names = TRUE), "docs/data", overwrite = TRUE)
 }
 
 # commit and push the changes to GitHub
 system("git add docs/")
-system("git commit -m 'Deploy spacetimeview widget to GitHub Pages'")
-system("git push")
+if (system("git diff --cached --quiet") != 0) {
+  system("git commit -m 'Deploy spacetimeview widget to GitHub Pages'")
+  system("git push")
+} else {
+  message("No docs changes to deploy.")
+}
