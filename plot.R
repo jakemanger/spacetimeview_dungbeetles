@@ -2,6 +2,22 @@ library(tidyverse)
 library(sf)
 library(dungfaunaR)
 
+# TODO: remove the spatial species that give na (they can't have a spatial prediction -> only have a temporal one because they aren't found anywhere else)
+# fix confidence interval colour
+# add comment about jagged
+# plot dung map. see if we can make it more fine-grained if we only have year
+# if we only have year, then that's all we got.
+# TODO: if spacetimetabs is being used and plot() is called, tell the user to run serve() as the json files are distributed as different files
+# make sure the above also works (smartly) when just spacetimeview is used too.
+
+# biomass of beetle -> brown map -> can we do brown map finer scale? 
+# here is the dung map project: https://github.com/jakemanger/dung-beetle-modelling/blob/main/analysis/calc_dung_map.Rmd
+# if not, run it with data for 3 years (by swapping out abs data).
+# https://www.abs.gov.au/statistics/industry/agriculture/agricultural-commodities-australia/latest-release#changes-in-this-and-forthcoming-issues
+# https://www.abs.gov.au/statistics/industry/agriculture/agricultural-commodities-australia/2020-21#data-download
+#
+# if we can go to month, it means there's this many beetles how much do they bury
+
 devtools::load_all('../spacetimeview')
 
 # configuration
@@ -1497,11 +1513,251 @@ biomass_tab <- spacetimeview(
   sticky_range = TRUE
 )
 
+productivity_selectable_columns <- c(
+  "Dollar value increase from Dung Beetles",
+  "Cattle number increase from Dung Beetles",
+  "Measured dollar value",
+  "Measured cattle numbers"
+)
+productivity_json_digits <- 5
+
+productivity_dashboard <- read_csv("direct_cattle_dashboard.csv", show_col_types = FALSE)
+
+format_short_number <- function(x) {
+  case_when(
+    abs(x) >= 999500 ~ paste0(
+      scales::number(x / 1e6, accuracy = 0.1, trim = TRUE, big.mark = ","),
+      "M"
+    ),
+    abs(x) >= 999.5 ~ paste0(
+      scales::number(x / 1e3, accuracy = 0.1, trim = TRUE, big.mark = ","),
+      "K"
+    ),
+    TRUE ~ scales::number(x, accuracy = 1, trim = TRUE, big.mark = ",")
+  )
+}
+
+format_short_dollar <- function(x) {
+  case_when(
+    abs(x) >= 999500000 ~ paste0(
+      "$",
+      scales::number(x / 1e9, accuracy = 0.1, trim = TRUE, big.mark = ","),
+      "B"
+    ),
+    abs(x) >= 999500 ~ paste0(
+      "$",
+      scales::number(x / 1e6, accuracy = 0.1, trim = TRUE, big.mark = ","),
+      "M"
+    ),
+    abs(x) >= 999.5 ~ paste0(
+      "$",
+      scales::number(x / 1e3, accuracy = 0.1, trim = TRUE, big.mark = ","),
+      "K"
+    ),
+    TRUE ~ paste0("$", scales::number(x, accuracy = 1, trim = TRUE, big.mark = ","))
+  )
+}
+
+productivity_totals <- productivity_dashboard %>%
+  summarise(across(all_of(productivity_selectable_columns), ~ sum(.x, na.rm = TRUE)))
+
+db_cattle_total <- productivity_totals[["Cattle number increase from Dung Beetles"]]
+db_value_total <- productivity_totals[["Dollar value increase from Dung Beetles"]]
+measured_cattle_total <- productivity_totals[["Measured cattle numbers"]]
+measured_value_total <- productivity_totals[["Measured dollar value"]]
+
+productivity_legend_subtitles <- list(
+  "Dollar value increase from Dung Beetles" = paste0(
+    "National estimate: +",
+    format_short_dollar(db_value_total),
+    " (",
+    scales::number(db_value_total / measured_value_total * 100, accuracy = 0.01),
+    "% of measured value)."
+  ),
+  "Cattle number increase from Dung Beetles" = paste0(
+    "National estimate: +",
+    format_short_number(db_cattle_total),
+    " cattle (",
+    scales::number(db_cattle_total / measured_cattle_total * 100, accuracy = 0.01),
+    "% of measured cattle)."
+  ),
+  "Measured dollar value" = paste0(
+    "National measured value: ",
+    format_short_dollar(measured_value_total),
+    "."
+  ),
+  "Measured cattle numbers" = paste0(
+    "National measured total: ",
+    format_short_number(measured_cattle_total),
+    " cattle."
+  )
+)
+
+productivity_color_schemes <- list(
+  "Dollar value increase from Dung Beetles" = "Greens",
+  "Cattle number increase from Dung Beetles" = "Greens",
+  "Measured dollar value" = "Blues",
+  "Measured cattle numbers" = "Blues"
+)
+
+productivity_legend_direction_text <- list(
+  "Dollar value increase from Dung Beetles" = "Added AUD",
+  "Cattle number increase from Dung Beetles" = "Added cattle",
+  "Measured dollar value" = "Measured AUD",
+  "Measured cattle numbers" = "Measured cattle"
+)
+
+productivity_observable_code <- "
+(() => {
+  var makeMessage = message => {
+    var div = document.createElement('div');
+    div.style.cssText = 'padding:20px;color:#666;font-family:system-ui,sans-serif;';
+    div.textContent = message;
+    return div;
+  };
+
+  if (!data || data.length === 0) {
+    return makeMessage('No productivity data available');
+  }
+
+  var metric = columnName || 'Cattle numbers';
+  var isDollar = metric === 'Dollar value';
+  var isIncrease = metric.indexOf('increase from Dung Beetles') !== -1;
+  isDollar = metric.toLowerCase().indexOf('dollar') !== -1;
+  var formatNumber = value => Number(value || 0).toLocaleString(undefined, {
+    maximumFractionDigits: 0
+  });
+  var formatDollar = value => '$' + Number(value || 0).toLocaleString(undefined, {
+    maximumFractionDigits: 0
+  });
+  var formatShort = value => {
+    var absValue = Math.abs(Number(value || 0));
+    if (absValue >= 1e9) return (value / 1e9).toFixed(1).replace(/\\.0$/, '') + 'B';
+    if (absValue >= 1e6) return (value / 1e6).toFixed(1).replace(/\\.0$/, '') + 'M';
+    if (absValue >= 1e3) return (value / 1e3).toFixed(1).replace(/\\.0$/, '') + 'K';
+    return Number(value || 0).toFixed(0);
+  };
+  var formatValue = value => isDollar ? formatDollar(value) : formatNumber(value);
+  var selectedType = isIncrease ? 'Estimated increase from Dung Beetles' : 'Measured';
+
+  var values = data
+    .map(d => Number(d[metric] !== undefined && d[metric] !== null ? d[metric] : d.value))
+    .filter(Number.isFinite);
+
+  if (values.length === 0) {
+    return makeMessage('No values available for this map cell');
+  }
+
+  var total = values.reduce((sum, value) => sum + value, 0);
+  var mean = total / values.length;
+  var max = values.reduce((currentMax, value) => Math.max(currentMax, value), -Infinity);
+
+  var wrapper = document.createElement('div');
+  wrapper.style.cssText = 'font-family:system-ui,sans-serif;color:#24313d;';
+
+  var summary = document.createElement('div');
+  summary.style.cssText = 'width:430px;box-sizing:border-box;padding:8px 12px 0 12px;font-size:12px;line-height:1.35;';
+  summary.innerHTML =
+    '<div style=\"font-weight:700;font-size:13px;\">' + selectedType + '</div>' +
+    '<div>' + metric + ' in selected map cell: ' + formatValue(total) + '</div>' +
+    '<div style=\"color:#5f6f7f;\">Based on ' + formatNumber(values.length) + ' source point' + (values.length === 1 ? '' : 's') + '.</div>';
+  wrapper.appendChild(summary);
+
+  wrapper.appendChild(Plot.plot({
+    marks: [
+      Plot.barX(
+        [
+          { label: 'Total', value: total },
+          { label: 'Mean', value: mean },
+          { label: 'Max', value: max }
+        ],
+        {
+          y: 'label',
+          x: 'value',
+          fill: '#8c510a',
+          title: d => d.label + ': ' + formatValue(d.value)
+        }
+      ),
+      Plot.text(
+        [
+          { label: 'Total', value: total },
+          { label: 'Mean', value: mean },
+          { label: 'Max', value: max }
+        ],
+        {
+          y: 'label',
+          x: 'value',
+          text: d => formatValue(d.value),
+          dx: 4,
+          textAnchor: 'start',
+          fill: '#24313d'
+        }
+      )
+    ],
+    x: {
+      label: metric,
+      grid: true,
+      tickFormat: d => isDollar ? '$' + formatShort(d) : formatShort(d)
+    },
+    y: {
+      label: null
+    },
+    style: {
+      fontSize: '12px'
+    },
+    width: 430,
+    height: 180,
+    marginLeft: 55,
+    marginRight: 70,
+    marginTop: 20,
+    marginBottom: 38
+  }));
+
+  return wrapper;
+})()
+"
+
+productivity_tab <- spacetimeview(
+  productivity_dashboard,
+  style = 'Summary',
+  column_to_plot = productivity_selectable_columns[1],
+  aggregate = 'SUM',
+  repeated_points_aggregate = 'SUM',
+  summary_radius = 45000,
+  summary_height = 1,
+  visible_controls = c('column_to_plot'),
+  control_names = c(
+    column_to_plot = 'Select map'
+  ),
+  json_digits = productivity_json_digits,
+  observable = productivity_observable_code,
+  selectable_columns = productivity_selectable_columns,
+  color_scheme = productivity_color_schemes,
+  color_scale_type = 'quantile',
+  country_codes = 'AU',
+  num_decimals = 0,
+  header_title = "Dung Beetles of Australia",
+  social_links = list(
+    # 'github' = 'https://github.com/jakemanger/spacetimeview_dungbeetles',
+    'uwa' = list(url = 'https://www.uwa.edu.au/', image = 'public/uwacrest-small-white.svg'),
+    'mla' = list(url = 'https://www.mla.com.au/', image = 'public/mla_logo_home.svg')
+  ),
+  menu_text = 'Select one of the four productivity maps.',
+  initial_latitude = -27.007754997248703,
+  initial_longitude = 134.35406022625756,
+  initial_zoom = 4,
+  legend_direction_text = productivity_legend_direction_text,
+  legendMetricLabel = productivity_legend_subtitles,
+  about_text = about_text,
+  animation_speed = 3,
+  sticky_range = FALSE
+)
+
 
 # hide model validation tab -> it is too big anyway
-plt <- predictions_tab + seasonal_predictions_tab + biomass_tab + occurrence_tab# + model_validation_tab
+plt <- predictions_tab + seasonal_predictions_tab + biomass_tab + productivity_tab + occurrence_tab# + model_validation_tab
 
-names(plt) <- c('Annual Predictions', 'Seasonal Predictions', 'Beetle Biomass', 'Occurrences') #, 'Model Validation')
+names(plt) <- c('Annual Predictions', 'Seasonal Predictions', 'Beetle Biomass', 'Productivity Increase', 'Occurrences') #, 'Model Validation')
 
 # Comment out serve() so it doesn't run during deployment
 #
