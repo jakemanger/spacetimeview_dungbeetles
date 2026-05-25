@@ -1514,10 +1514,10 @@ biomass_tab <- spacetimeview(
 )
 
 productivity_selectable_columns <- c(
-  "Dollar value increase from Dung Beetles (AUD/ha)",
-  "Cattle number increase from Dung Beetles (cattle/ha)",
-  "Measured dollar value (AUD/ha)",
-  "Measured cattle numbers (cattle/ha)"
+  "Dollar value, measured from ABS",
+  "Dollar value, estimated from Dung Beetles",
+  "Cattle number, measured from ABS",
+  "Cattle number, estimated from Dung Beetles"
 )
 
 productivity_total_columns <- c(
@@ -1577,44 +1577,44 @@ measured_cattle_total <- productivity_totals[["Total measured cattle numbers"]]
 measured_value_total <- productivity_totals[["Total measured dollar value"]]
 
 productivity_legend_subtitles <- list(
-  "Dollar value increase from Dung Beetles (AUD/ha)" = paste0(
-    "Map shows AUD per grazing hectare. National estimate: +",
+  "Dollar value, measured from ABS" = paste0(
+    "Map shows AUD per grazing hectare. National measured value: ",
+    format_short_dollar(measured_value_total),
+    "."
+  ),
+  "Dollar value, estimated from Dung Beetles" = paste0(
+    "Map shows AUD per grazing hectare. National estimate from dung beetles: +",
     format_short_dollar(db_value_total),
     " (",
     scales::number(db_value_total / measured_value_total * 100, accuracy = 0.01),
     "% of measured value)."
   ),
-  "Cattle number increase from Dung Beetles (cattle/ha)" = paste0(
-    "Map shows cattle per grazing hectare. National estimate: +",
+  "Cattle number, measured from ABS" = paste0(
+    "Map shows cattle per grazing hectare. National measured total: ",
+    format_short_number(measured_cattle_total),
+    " cattle."
+  ),
+  "Cattle number, estimated from Dung Beetles" = paste0(
+    "Map shows cattle per grazing hectare. National estimate from dung beetles: +",
     format_short_number(db_cattle_total),
     " cattle (",
     scales::number(db_cattle_total / measured_cattle_total * 100, accuracy = 0.01),
     "% of measured cattle)."
-  ),
-  "Measured dollar value (AUD/ha)" = paste0(
-    "Map shows AUD per grazing hectare. National measured value: ",
-    format_short_dollar(measured_value_total),
-    "."
-  ),
-  "Measured cattle numbers (cattle/ha)" = paste0(
-    "Map shows cattle per grazing hectare. National measured total: ",
-    format_short_number(measured_cattle_total),
-    " cattle."
   )
 )
 
 productivity_color_schemes <- list(
-  "Dollar value increase from Dung Beetles (AUD/ha)" = "Greens",
-  "Cattle number increase from Dung Beetles (cattle/ha)" = "Greens",
-  "Measured dollar value (AUD/ha)" = "Blues",
-  "Measured cattle numbers (cattle/ha)" = "Blues"
+  "Dollar value, measured from ABS" = "YlOrBr",
+  "Dollar value, estimated from Dung Beetles" = "Oranges",
+  "Cattle number, measured from ABS" = "PuBuGn",
+  "Cattle number, estimated from Dung Beetles" = "Greens"
 )
 
 productivity_legend_direction_text <- list(
-  "Dollar value increase from Dung Beetles (AUD/ha)" = "Added AUD/ha",
-  "Cattle number increase from Dung Beetles (cattle/ha)" = "Added cattle/ha",
-  "Measured dollar value (AUD/ha)" = "Measured AUD/ha",
-  "Measured cattle numbers (cattle/ha)" = "Measured cattle/ha"
+  "Dollar value, measured from ABS" = "Measured AUD/ha",
+  "Dollar value, estimated from Dung Beetles" = "Estimated AUD/ha",
+  "Cattle number, measured from ABS" = "Measured cattle/ha",
+  "Cattle number, estimated from Dung Beetles" = "Estimated cattle/ha"
 )
 
 productivity_observable_code <- "
@@ -1630,17 +1630,16 @@ productivity_observable_code <- "
     return makeMessage('No productivity data available');
   }
 
-  var metric = columnName || 'Cattle numbers';
-  var isDollar = metric === 'Dollar value';
-  var isIncrease = metric.indexOf('increase from Dung Beetles') !== -1;
-  isDollar = metric.toLowerCase().indexOf('dollar') !== -1;
-  var isPerHectare = metric.indexOf('/ha') !== -1;
+  var metric = columnName || 'Cattle number, measured from ABS';
+  var isEstimate = metric.indexOf('estimated from Dung Beetles') !== -1;
+  var isDollar = metric.toLowerCase().indexOf('dollar') !== -1;
+  var isPerHectare = true;
   var unitLabel = isDollar ? 'AUD/ha' : 'cattle/ha';
   var formatNumber = value => Number(value || 0).toLocaleString(undefined, {
     maximumFractionDigits: isPerHectare ? 3 : 0
   });
   var formatDollar = value => '$' + Number(value || 0).toLocaleString(undefined, {
-    maximumFractionDigits: 0
+    maximumFractionDigits: Math.abs(Number(value || 0)) < 10 ? 2 : 0
   });
   var formatShort = value => {
     var absValue = Math.abs(Number(value || 0));
@@ -1651,7 +1650,7 @@ productivity_observable_code <- "
     return Number(value || 0).toFixed(0);
   };
   var formatValue = value => isDollar ? formatDollar(value) : formatNumber(value);
-  var selectedType = isIncrease ? 'Estimated increase from Dung Beetles' : 'Measured';
+  var selectedType = isEstimate ? 'Estimated from Dung Beetles' : 'Measured from ABS';
 
   var values = data
     .map(d => Number(d[metric] !== undefined && d[metric] !== null ? d[metric] : d.value))
