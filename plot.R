@@ -1635,6 +1635,7 @@ productivity_observable_code <- "
   var isIncrease = metric.indexOf('increase from Dung Beetles') !== -1;
   isDollar = metric.toLowerCase().indexOf('dollar') !== -1;
   var isPerHectare = metric.indexOf('/ha') !== -1;
+  var unitLabel = isDollar ? 'AUD/ha' : 'cattle/ha';
   var formatNumber = value => Number(value || 0).toLocaleString(undefined, {
     maximumFractionDigits: isPerHectare ? 3 : 0
   });
@@ -1661,73 +1662,19 @@ productivity_observable_code <- "
   }
 
   var total = values.reduce((sum, value) => sum + value, 0);
-  var mean = total / values.length;
-  var min = values.reduce((currentMin, value) => Math.min(currentMin, value), Infinity);
-  var max = values.reduce((currentMax, value) => Math.max(currentMax, value), -Infinity);
-  var chartRows = isPerHectare
-    ? [
-        { label: 'Mean', value: mean },
-        { label: 'Min', value: min },
-        { label: 'Max', value: max }
-      ]
-    : [
-        { label: 'Total', value: total },
-        { label: 'Mean', value: mean },
-        { label: 'Max', value: max }
-      ];
+  var displayedValue = total / values.length;
 
   var wrapper = document.createElement('div');
   wrapper.style.cssText = 'font-family:system-ui,sans-serif;color:#24313d;';
 
   var summary = document.createElement('div');
-  summary.style.cssText = 'width:430px;box-sizing:border-box;padding:8px 12px 0 12px;font-size:12px;line-height:1.35;';
+  summary.style.cssText = 'width:340px;box-sizing:border-box;padding:12px 14px;font-size:12px;line-height:1.4;';
   summary.innerHTML =
-    '<div style=\"font-weight:700;font-size:13px;\">' + selectedType + '</div>' +
-    '<div>' + metric + ' in selected map area: ' + formatValue(isPerHectare ? mean : total) + '</div>' +
-    '<div style=\"color:#5f6f7f;\">Based on ' + formatNumber(values.length) + ' source point' + (values.length === 1 ? '' : 's') + '.</div>';
+    '<div style=\"font-weight:700;font-size:13px;margin-bottom:6px;\">' + selectedType + '</div>' +
+    '<div style=\"font-size:22px;font-weight:700;color:#24313d;\">' + formatValue(displayedValue) + '</div>' +
+    '<div style=\"color:#5f6f7f;margin-top:2px;\">' + unitLabel + ' in the selected map area</div>' +
+    '<div style=\"color:#7b8792;margin-top:8px;\">Calculated from ' + formatNumber(values.length) + ' grid cell' + (values.length === 1 ? '' : 's') + '.</div>';
   wrapper.appendChild(summary);
-
-  wrapper.appendChild(Plot.plot({
-    marks: [
-      Plot.barX(
-        chartRows,
-        {
-          y: 'label',
-          x: 'value',
-          fill: '#8c510a',
-          title: d => d.label + ': ' + formatValue(d.value)
-        }
-      ),
-      Plot.text(
-        chartRows,
-        {
-          y: 'label',
-          x: 'value',
-          text: d => formatValue(d.value),
-          dx: 4,
-          textAnchor: 'start',
-          fill: '#24313d'
-        }
-      )
-    ],
-    x: {
-      label: metric,
-      grid: true,
-      tickFormat: d => isDollar ? '$' + formatShort(d) : formatShort(d)
-    },
-    y: {
-      label: null
-    },
-    style: {
-      fontSize: '12px'
-    },
-    width: 430,
-    height: 180,
-    marginLeft: 55,
-    marginRight: 70,
-    marginTop: 20,
-    marginBottom: 38
-  }));
 
   return wrapper;
 })()
