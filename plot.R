@@ -1514,14 +1514,24 @@ biomass_tab <- spacetimeview(
 )
 
 productivity_selectable_columns <- c(
-  "Dollar value increase from Dung Beetles",
-  "Cattle number increase from Dung Beetles",
-  "Measured dollar value",
-  "Measured cattle numbers"
+  "Dollar value increase from Dung Beetles (AUD/ha)",
+  "Cattle number increase from Dung Beetles (cattle/ha)",
+  "Measured dollar value (AUD/ha)",
+  "Measured cattle numbers (cattle/ha)"
+)
+
+productivity_total_columns <- c(
+  "Total dollar value increase from Dung Beetles",
+  "Total cattle number increase from Dung Beetles",
+  "Total measured dollar value",
+  "Total measured cattle numbers"
 )
 productivity_json_digits <- 5
 
-productivity_dashboard <- read_csv("direct_cattle_dashboard.csv", show_col_types = FALSE)
+productivity_dashboard_raw <- read_csv("direct_cattle_dashboard.csv", show_col_types = FALSE)
+
+productivity_dashboard <- productivity_dashboard_raw %>%
+  select(decimalLatitude, decimalLongitude, all_of(productivity_selectable_columns))
 
 format_short_number <- function(x) {
   case_when(
@@ -1558,53 +1568,53 @@ format_short_dollar <- function(x) {
   )
 }
 
-productivity_totals <- productivity_dashboard %>%
-  summarise(across(all_of(productivity_selectable_columns), ~ sum(.x, na.rm = TRUE)))
+productivity_totals <- productivity_dashboard_raw %>%
+  summarise(across(all_of(productivity_total_columns), ~ sum(.x, na.rm = TRUE)))
 
-db_cattle_total <- productivity_totals[["Cattle number increase from Dung Beetles"]]
-db_value_total <- productivity_totals[["Dollar value increase from Dung Beetles"]]
-measured_cattle_total <- productivity_totals[["Measured cattle numbers"]]
-measured_value_total <- productivity_totals[["Measured dollar value"]]
+db_cattle_total <- productivity_totals[["Total cattle number increase from Dung Beetles"]]
+db_value_total <- productivity_totals[["Total dollar value increase from Dung Beetles"]]
+measured_cattle_total <- productivity_totals[["Total measured cattle numbers"]]
+measured_value_total <- productivity_totals[["Total measured dollar value"]]
 
 productivity_legend_subtitles <- list(
-  "Dollar value increase from Dung Beetles" = paste0(
-    "National estimate: +",
+  "Dollar value increase from Dung Beetles (AUD/ha)" = paste0(
+    "Map shows AUD per grazing hectare. National estimate: +",
     format_short_dollar(db_value_total),
     " (",
     scales::number(db_value_total / measured_value_total * 100, accuracy = 0.01),
     "% of measured value)."
   ),
-  "Cattle number increase from Dung Beetles" = paste0(
-    "National estimate: +",
+  "Cattle number increase from Dung Beetles (cattle/ha)" = paste0(
+    "Map shows cattle per grazing hectare. National estimate: +",
     format_short_number(db_cattle_total),
     " cattle (",
     scales::number(db_cattle_total / measured_cattle_total * 100, accuracy = 0.01),
     "% of measured cattle)."
   ),
-  "Measured dollar value" = paste0(
-    "National measured value: ",
+  "Measured dollar value (AUD/ha)" = paste0(
+    "Map shows AUD per grazing hectare. National measured value: ",
     format_short_dollar(measured_value_total),
     "."
   ),
-  "Measured cattle numbers" = paste0(
-    "National measured total: ",
+  "Measured cattle numbers (cattle/ha)" = paste0(
+    "Map shows cattle per grazing hectare. National measured total: ",
     format_short_number(measured_cattle_total),
     " cattle."
   )
 )
 
 productivity_color_schemes <- list(
-  "Dollar value increase from Dung Beetles" = "Greens",
-  "Cattle number increase from Dung Beetles" = "Greens",
-  "Measured dollar value" = "Blues",
-  "Measured cattle numbers" = "Blues"
+  "Dollar value increase from Dung Beetles (AUD/ha)" = "Greens",
+  "Cattle number increase from Dung Beetles (cattle/ha)" = "Greens",
+  "Measured dollar value (AUD/ha)" = "Blues",
+  "Measured cattle numbers (cattle/ha)" = "Blues"
 )
 
 productivity_legend_direction_text <- list(
-  "Dollar value increase from Dung Beetles" = "Added AUD",
-  "Cattle number increase from Dung Beetles" = "Added cattle",
-  "Measured dollar value" = "Measured AUD",
-  "Measured cattle numbers" = "Measured cattle"
+  "Dollar value increase from Dung Beetles (AUD/ha)" = "Added AUD/ha",
+  "Cattle number increase from Dung Beetles (cattle/ha)" = "Added cattle/ha",
+  "Measured dollar value (AUD/ha)" = "Measured AUD/ha",
+  "Measured cattle numbers (cattle/ha)" = "Measured cattle/ha"
 )
 
 productivity_observable_code <- "
@@ -1624,8 +1634,9 @@ productivity_observable_code <- "
   var isDollar = metric === 'Dollar value';
   var isIncrease = metric.indexOf('increase from Dung Beetles') !== -1;
   isDollar = metric.toLowerCase().indexOf('dollar') !== -1;
+  var isPerHectare = metric.indexOf('/ha') !== -1;
   var formatNumber = value => Number(value || 0).toLocaleString(undefined, {
-    maximumFractionDigits: 0
+    maximumFractionDigits: isPerHectare ? 3 : 0
   });
   var formatDollar = value => '$' + Number(value || 0).toLocaleString(undefined, {
     maximumFractionDigits: 0
@@ -1635,6 +1646,7 @@ productivity_observable_code <- "
     if (absValue >= 1e9) return (value / 1e9).toFixed(1).replace(/\\.0$/, '') + 'B';
     if (absValue >= 1e6) return (value / 1e6).toFixed(1).replace(/\\.0$/, '') + 'M';
     if (absValue >= 1e3) return (value / 1e3).toFixed(1).replace(/\\.0$/, '') + 'K';
+    if (isPerHectare && absValue < 10) return Number(value || 0).toFixed(2).replace(/\\.?0+$/, '');
     return Number(value || 0).toFixed(0);
   };
   var formatValue = value => isDollar ? formatDollar(value) : formatNumber(value);
@@ -1650,7 +1662,19 @@ productivity_observable_code <- "
 
   var total = values.reduce((sum, value) => sum + value, 0);
   var mean = total / values.length;
+  var min = values.reduce((currentMin, value) => Math.min(currentMin, value), Infinity);
   var max = values.reduce((currentMax, value) => Math.max(currentMax, value), -Infinity);
+  var chartRows = isPerHectare
+    ? [
+        { label: 'Mean', value: mean },
+        { label: 'Min', value: min },
+        { label: 'Max', value: max }
+      ]
+    : [
+        { label: 'Total', value: total },
+        { label: 'Mean', value: mean },
+        { label: 'Max', value: max }
+      ];
 
   var wrapper = document.createElement('div');
   wrapper.style.cssText = 'font-family:system-ui,sans-serif;color:#24313d;';
@@ -1659,18 +1683,14 @@ productivity_observable_code <- "
   summary.style.cssText = 'width:430px;box-sizing:border-box;padding:8px 12px 0 12px;font-size:12px;line-height:1.35;';
   summary.innerHTML =
     '<div style=\"font-weight:700;font-size:13px;\">' + selectedType + '</div>' +
-    '<div>' + metric + ' in selected map cell: ' + formatValue(total) + '</div>' +
+    '<div>' + metric + ' in selected map area: ' + formatValue(isPerHectare ? mean : total) + '</div>' +
     '<div style=\"color:#5f6f7f;\">Based on ' + formatNumber(values.length) + ' source point' + (values.length === 1 ? '' : 's') + '.</div>';
   wrapper.appendChild(summary);
 
   wrapper.appendChild(Plot.plot({
     marks: [
       Plot.barX(
-        [
-          { label: 'Total', value: total },
-          { label: 'Mean', value: mean },
-          { label: 'Max', value: max }
-        ],
+        chartRows,
         {
           y: 'label',
           x: 'value',
@@ -1679,11 +1699,7 @@ productivity_observable_code <- "
         }
       ),
       Plot.text(
-        [
-          { label: 'Total', value: total },
-          { label: 'Mean', value: mean },
-          { label: 'Max', value: max }
-        ],
+        chartRows,
         {
           y: 'label',
           x: 'value',
@@ -1721,8 +1737,8 @@ productivity_tab <- spacetimeview(
   productivity_dashboard,
   style = 'Summary',
   column_to_plot = productivity_selectable_columns[1],
-  aggregate = 'SUM',
-  repeated_points_aggregate = 'SUM',
+  aggregate = 'MEAN',
+  repeated_points_aggregate = 'MEAN',
   summary_radius = 45000,
   summary_height = 1,
   visible_controls = c('column_to_plot'),
@@ -1735,7 +1751,7 @@ productivity_tab <- spacetimeview(
   color_scheme = productivity_color_schemes,
   color_scale_type = 'quantile',
   country_codes = 'AU',
-  num_decimals = 0,
+  num_decimals = 2,
   header_title = "Dung Beetles of Australia",
   social_links = list(
     # 'github' = 'https://github.com/jakemanger/spacetimeview_dungbeetles',
